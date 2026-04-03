@@ -1,0 +1,596 @@
+{
+  "target": "https://juice-shop.herokuapp.com/#/",
+  "timestamp": "2026-04-03T18:38:21",
+  "passive_recon": {
+    "domain": "juice-shop.herokuapp.com",
+    "ip_addresses": [
+      "54.73.53.134",
+      "54.220.192.176",
+      "46.137.15.86"
+    ],
+    "whois": {
+      "error": "No match for \"JUICE-SHOP.HEROKUAPP.COM\".\r\n>>> Last update of whois database: 2026-04-03T11:36:40Z <<<\r\n\r\nNOTICE: The exp"
+    },
+    "dns_records": {
+      "A": [
+        "54.73.53.134",
+        "54.220.192.176",
+        "46.137.15.86"
+      ],
+      "AAAA": [],
+      "CNAME": [],
+      "MX": [],
+      "NS": [],
+      "TXT": []
+    },
+    "subdomains": [],
+    "ssl": {
+      "error": "No certificate returned by server"
+    },
+    "technology": {
+      "server": "Heroku",
+      "cms": "",
+      "frameworks": [],
+      "libraries": [],
+      "security_headers": {
+        "Strict-Transport-Security": null,
+        "Content-Security-Policy": null,
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": null,
+        "Permissions-Policy": null,
+        "X-XSS-Protection": null
+      },
+      "whatweb": [
+        {
+          "name": "Via-Proxy",
+          "version": "1.1 heroku-router"
+        },
+        {
+          "name": "X-Frame-Options",
+          "version": "SAMEORIGIN"
+        }
+      ]
+    },
+    "theharvester": {
+      "emails": [],
+      "hosts": [],
+      "ips": [],
+      "source": "kali_theharvester"
+    },
+    "sublist3r": {
+      "subdomains": [],
+      "source": "kali_sublist3r"
+    },
+    "crtsh": {
+      "subdomains": [],
+      "source": "crtsh"
+    },
+    "wayback": {
+      "urls": [
+        "https://juice-shop.herokuapp.com/",
+        "https://juice-shop.herokuapp.com/%0A%0Anih",
+        "https://juice-shop.herokuapp.com/%E2%80%A2OWASP%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%80%81%E8%84%86%E5%BC%B1%E6%80%A7%E8%A8%BA%E6%96%AD%E3%82%92%E7%B7%B4%E7%BF%92%E3%81%99%E3%82%8B%E3%81%9F%E3%82%81%E3%81%AE%E3%82%B5%E3%82%A4%E3%83%88%E2%80%A2OWASP",
+        "https://juice-shop.herokuapp.com/)",
+        "https://juice-shop.herokuapp.com/)%3C/a%3E",
+        "http://juice-shop.herokuapp.com/-",
+        "https://juice-shop.herokuapp.com/.well-known/dnt-policy.txt",
+        "https://juice-shop.herokuapp.com/.well-known/en,%20ar,%20az,%20bg,%20bn,%20ca,%20cs,%20da,%20de,%20ga,%20el,%20es,%20et,%20fi,%20fr,%20ka,%20he,%20hi,%20hu,%20id,%20it,%20ja,%20ko,%20lv,%20my,%20nl,%20no,%20pl,%20pt,%20ro,%20ru,%20si,%20sv,%20th,%20tr,%20uk,%20zh",
+        "https://juice-shop.herokuapp.com/.well-known/Mon,%2016%20Jun%202025%2016:38:50%20GMT",
+        "https://juice-shop.herokuapp.com/.well-known/nodeinfo",
+        "https://juice-shop.herokuapp.com/.well-known/openid-configuration",
+        "https://juice-shop.herokuapp.com/.well-known/security.txt",
+        "https://juice-shop.herokuapp.com/.well-known/Sun,%2002%20Nov%202025%2009:20:07%20GMT",
+        "https://juice-shop.herokuapp.com/.well-known/Thu,%2006%20Nov%202025%2004:27:22%20GMT",
+        "https://juice-shop.herokuapp.com/.well-known/Thu,%2023%20Jul%202026%2023:34:22%20GMT",
+        "https://juice-shop.herokuapp.com/.well-known/trust.txt",
+        "https://juice-shop.herokuapp.com/.well-known/Tue,%2015%20Jul%202025%2016:22:35%20GMT",
+        "https://juice-shop.herokuapp.com/1",
+        "https://juice-shop.herokuapp.com/?ref=nullsweep.com",
+        "https://juice-shop.herokuapp.com/%5C",
+        "https://juice-shop.herokuapp.com/ads.txt",
+        "https://juice-shop.herokuapp.com/api-docs/",
+        "https://juice-shop.herokuapp.com/api-docs/v1",
+        "http://juice-shop.herokuapp.com/api/Challenges/",
+        "https://juice-shop.herokuapp.com/api/Challenges/?name=Score%20Board",
+        "https://juice-shop.herokuapp.com/api/Challenges/?sort=name",
+        "https://juice-shop.herokuapp.com/api/Feedbacks/",
+        "https://juice-shop.herokuapp.com/api/Hints/",
+        "https://juice-shop.herokuapp.com/api/Products/1",
+        "https://juice-shop.herokuapp.com/api/Products/13",
+        "https://juice-shop.herokuapp.com/api/Products/15",
+        "http://juice-shop.herokuapp.com/api/Products/15?d=Mon%20Oct%2003%202016",
+        "https://juice-shop.herokuapp.com/api/Products/16?d=Tue%20Sep%2010%202019",
+        "http://juice-shop.herokuapp.com/api/Products/1?d=Mon%20Oct%2003%202016",
+        "https://juice-shop.herokuapp.com/api/Products/20",
+        "https://juice-shop.herokuapp.com/api/Products/21",
+        "https://juice-shop.herokuapp.com/api/Products/23",
+        "https://juice-shop.herokuapp.com/api/Products/23?d=Tue%20Sep%2010%202019",
+        "https://juice-shop.herokuapp.com/api/Products/24",
+        "https://juice-shop.herokuapp.com/api/Products/24?d=Tue%20Sep%2010%202019",
+        "https://juice-shop.herokuapp.com/api/Products/25",
+        "https://juice-shop.herokuapp.com/api/Products/26",
+        "https://juice-shop.herokuapp.com/api/Products/29",
+        "https://juice-shop.herokuapp.com/api/Products/3",
+        "https://juice-shop.herokuapp.com/api/Products/3?d=Tue%20Sep%2010%202019",
+        "https://juice-shop.herokuapp.com/api/Products/6",
+        "https://juice-shop.herokuapp.com/api/Products/6?d=Tue%20Sep%2010%202019",
+        "https://juice-shop.herokuapp.com/api/Products/7",
+        "https://juice-shop.herokuapp.com/api/Products/8",
+        "https://juice-shop.herokuapp.com/api/Quantitys/",
+        "https://juice-shop.herokuapp.com/api/Recycles/",
+        "http://juice-shop.herokuapp.com/api/SecurityQuestions/",
+        "https://juice-shop.herokuapp.com/app-ads.txt",
+        "https://juice-shop.herokuapp.com/assets/public/",
+        "https://juice-shop.herokuapp.com/assets/public/images/products/carrot_juice.jpeg",
+        "https://juice-shop.herokuapp.com/assets/public/images/products/melon_bike.jpeg",
+        "https://juice-shop.herokuapp.com/assets/public/images/products/strawberry_juice.jpeg",
+        "https://juice-shop.herokuapp.com/assets/public/images/uploads/%F0%9F%98%BC-",
+        "https://juice-shop.herokuapp.com/atom.xml",
+        "http://juice-shop.herokuapp.com/bower_components/bootswatch/fonts/glyphicons-halflings-regular.eot",
+        "http://juice-shop.herokuapp.com/bower_components/bootswatch/fonts/glyphicons-halflings-regular.ttf"
+      ],
+      "source": "wayback"
+    }
+  },
+  "active_recon": {
+    "availability": {
+      "http": true,
+      "https": true,
+      "status_code": 200,
+      "redirects": []
+    },
+    "headers": {
+      "Server": "Heroku",
+      "Content-Type": "text/html; charset=UTF-8",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=0"
+    },
+    "http_methods": [
+      "TRACE"
+    ],
+    "ports": [
+      {
+        "port": 80,
+        "service": "http",
+        "version": "",
+        "source": "kali_nmap"
+      },
+      {
+        "port": 443,
+        "service": "https",
+        "version": "",
+        "source": "kali_nmap"
+      }
+    ],
+    "waf": {
+      "detected": false,
+      "name": "",
+      "manufacturer": "",
+      "source": "kali_wafw00f"
+    },
+    "banners": [
+      {
+        "port": 80,
+        "service": "http",
+        "banner": "HTTP/1.0 400 Bad Request\r\nCache-Control: no-cache, no-store\r\nContent-Type: text/html; charset=utf-8\r\nDate: 2026-04-03 11:38:19.582092142 +0000 UTC\r\nServer: heroku-router\r\nContent-Length: 0"
+      }
+    ],
+    "syn_scan": {
+      "ports": [],
+      "source": "no_privileges"
+    },
+    "crawl": {
+      "urls": [
+        "https://juice-shop.herokuapp.com/#"
+      ],
+      "forms": [],
+      "params": [],
+      "notable_endpoints": [],
+      "js_endpoints": [],
+      "hidden_fields": []
+    },
+    "discovery": {
+      "robots": {
+        "status": 200,
+        "disallowed": [
+          "/ftp"
+        ],
+        "allowed": [],
+        "sitemaps": []
+      },
+      "sitemap_urls": []
+    },
+    "cookies_analysis": [],
+    "hidden_endpoints": [
+      {
+        "url": "https://juice-shop.herokuapp.com/cp/",
+        "path": "/cp/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/admin.php",
+        "path": "/admin.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/manager/",
+        "path": "/manager/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/administrator/",
+        "path": "/administrator/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/login",
+        "path": "/login",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/manage/",
+        "path": "/manage/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/admin",
+        "path": "/admin",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/logout",
+        "path": "/logout",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/console/",
+        "path": "/console/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/register",
+        "path": "/register",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/panel/",
+        "path": "/panel/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/signup",
+        "path": "/signup",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/graphql",
+        "path": "/graphql",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/login.php",
+        "path": "/login.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/dashboard/",
+        "path": "/dashboard/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/admin/",
+        "path": "/admin/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/upload",
+        "path": "/upload",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/uploads/",
+        "path": "/uploads/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/graphiql",
+        "path": "/graphiql",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/files/",
+        "path": "/files/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/media/",
+        "path": "/media/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/assets/",
+        "path": "/assets/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/phpinfo.php",
+        "path": "/phpinfo.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/info.php",
+        "path": "/info.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/config.php",
+        "path": "/config.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/test.php",
+        "path": "/test.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/.env",
+        "path": "/.env",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/.htaccess",
+        "path": "/.htaccess",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/phpmyadmin/",
+        "path": "/phpmyadmin/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/.gitignore",
+        "path": "/.gitignore",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/.git/HEAD",
+        "path": "/.git/HEAD",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/backup/",
+        "path": "/backup/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/backup.sql",
+        "path": "/backup.sql",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/phpmyadmin",
+        "path": "/phpmyadmin",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/backup.zip",
+        "path": "/backup.zip",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/db.sql",
+        "path": "/db.sql",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/robots.txt",
+        "path": "/robots.txt",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/sitemap.xml",
+        "path": "/sitemap.xml",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/sitemap_index.xml",
+        "path": "/sitemap_index.xml",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/wp-admin/",
+        "path": "/wp-admin/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/wp-login.php",
+        "path": "/wp-login.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/wp-config.php",
+        "path": "/wp-config.php",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/server-status",
+        "path": "/server-status",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/server-info",
+        "path": "/server-info",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/actuator/health",
+        "path": "/actuator/health",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/actuator/",
+        "path": "/actuator/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/tmp/",
+        "path": "/tmp/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/test/",
+        "path": "/test/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/temp/",
+        "path": "/temp/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/api-docs/",
+        "path": "/api-docs/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/docs/",
+        "path": "/docs/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/swagger-ui/",
+        "path": "/swagger-ui/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/status/",
+        "path": "/status/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/openapi.json",
+        "path": "/openapi.json",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/swagger/",
+        "path": "/swagger/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/cache/",
+        "path": "/cache/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/health/",
+        "path": "/health/",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/healthcheck",
+        "path": "/healthcheck",
+        "status": 200,
+        "source": "kali_ffuf"
+      },
+      {
+        "url": "https://juice-shop.herokuapp.com/ping",
+        "path": "/ping",
+        "status": 200,
+        "source": "kali_ffuf"
+      }
+    ],
+    "tool_sources": {
+      "nmap": "kali_nmap",
+      "ffuf": "kali_ffuf",
+      "wafw00f": "kali_wafw00f",
+      "banner": "socket",
+      "syn_scanner": "no_privileges"
+    }
+  },
+  "summary": {
+    "total_urls": 1,
+    "total_forms": 0,
+    "total_params": 0,
+    "total_notable_endpoints": 0,
+    "total_hidden_endpoints": 59,
+    "total_js_endpoints": 0,
+    "total_hidden_fields": 0,
+    "total_discovered_from_robots": 1,
+    "total_discovered_from_sitemap": 0,
+    "total_subdomains": 0,
+    "total_emails": 0,
+    "total_wayback_urls": 61,
+    "total_crtsh_subdomains": 0,
+    "ssl_valid": false,
+    "nmap_used": true,
+    "nmap_source": "kali_nmap",
+    "ffuf_used": true,
+    "ffuf_source": "kali_ffuf",
+    "whatweb_source": "kali_whatweb",
+    "limitations": [
+      "WHOIS: No match for \"JUICE-SHOP.HEROKUAPP.COM\".\r\n>>> Last update of whois database: 2026-04-03T11:36:40Z <<<\r\n\r\nNOTICE: The exp",
+      "SSL: No certificate returned by server"
+    ]
+  }
+}

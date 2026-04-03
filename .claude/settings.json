@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python probe_runtime.py)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

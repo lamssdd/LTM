@@ -1,0 +1,422 @@
+[
+  {
+    "id": "1775204014",
+    "target": "http://testfire.net/",
+    "scan_time": "03/04/2026 15:13:34",
+    "total_elapsed": "256.5s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 11,
+      "total_forms": 4,
+      "total_params": 5,
+      "limitations": [
+        "SSL: No certificate returned by server"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775203895",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 15:11:35",
+    "total_elapsed": "60.9s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 0,
+      "total_forms": 0,
+      "total_params": 0,
+      "limitations": [
+        "SSL: SSL connection timeout",
+        "Crawl: no internal URLs collected — site may require authentication",
+        "Port scan: nmap not available, socket probe used (less accurate)",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775203808",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 15:10:08",
+    "total_elapsed": "38.1s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 0,
+      "total_forms": 0,
+      "total_params": 0,
+      "limitations": [
+        "SSL: No certificate returned by server",
+        "Crawl: no internal URLs collected — site may require authentication",
+        "Port scan: nmap not available, socket probe used (less accurate)",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775203762",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 15:09:22",
+    "total_elapsed": "49.3s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 0,
+      "total_forms": 0,
+      "total_params": 0,
+      "limitations": [
+        "SSL: SSL connection timeout",
+        "Crawl: no internal URLs collected — site may require authentication",
+        "Port scan: nmap not available, socket probe used (less accurate)",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775203735",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 15:08:55",
+    "total_elapsed": "181.9s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 3,
+      "total_forms": 1,
+      "total_params": 1,
+      "limitations": [
+        "SSL: SSL connection timeout"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775181983",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 09:06:23",
+    "total_elapsed": "19.3s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 13,
+      "total_forms": 5,
+      "total_params": 9,
+      "limitations": [
+        "SSL: No certificate returned by server"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775181454",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 08:57:34",
+    "total_elapsed": "21.9s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 13,
+      "total_forms": 5,
+      "total_params": 9,
+      "limitations": [
+        "SSL: No certificate returned by server"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775175112",
+    "target": "http://testfire.net",
+    "scan_time": "03/04/2026 07:11:52",
+    "total_elapsed": "16.7s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 13,
+      "total_forms": 5,
+      "total_params": 9,
+      "limitations": [
+        "SSL: No certificate returned by server"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775174963",
+    "target": "http://localhost/dvwa/login.php",
+    "scan_time": "03/04/2026 07:09:23",
+    "total_elapsed": "6.6s",
+    "risk_score": 0,
+    "risk_label": "",
+    "report_path": "",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 1,
+      "total_forms": 1,
+      "total_params": 2,
+      "limitations": [
+        "Target is localhost/private IP: WHOIS, public DNS records, and subdomain enumeration are not applicable.",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775148370",
+    "target": "http://localhost/dvwa/login.php",
+    "scan_time": "02/04/2026 23:46:10",
+    "total_elapsed": "5.4s",
+    "risk_score": 0,
+    "risk_label": "RECON ONLY",
+    "report_path": "reports/recon_report_20260402_234610.html",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 1,
+      "total_forms": 1,
+      "total_params": 2,
+      "limitations": [
+        "Target is localhost/private IP: WHOIS, public DNS records, and subdomain enumeration are not applicable.",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775148351",
+    "target": "http://localhost/dvwa/login.php",
+    "scan_time": "02/04/2026 23:45:51",
+    "total_elapsed": "5.4s",
+    "risk_score": 0,
+    "risk_label": "RECON ONLY",
+    "report_path": "reports/recon_report_20260402_234551.html",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 1,
+      "total_forms": 1,
+      "total_params": 2,
+      "limitations": [
+        "Target is localhost/private IP: WHOIS, public DNS records, and subdomain enumeration are not applicable.",
+        "Hidden endpoint discovery: ffuf not available, HTTP HEAD probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [],
+    "top_findings": []
+  },
+  {
+    "id": "1775147152",
+    "target": "http://localhost/dvwa/login.php",
+    "scan_time": "02/04/2026 23:25:52",
+    "total_elapsed": "9.3s",
+    "risk_score": 0,
+    "risk_label": "RECON ONLY",
+    "report_path": "reports/recon_report_20260402_232552.html",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 1,
+      "total_forms": 1,
+      "total_params": 5,
+      "limitations": [
+        "DNS: dnspython not installed; only A record via socket fallback",
+        "SSL: No certificate returned by server",
+        "Hidden endpoints: ffuf not available, HTTP probe used (limited wordlist)"
+      ]
+    },
+    "highlights": [
+      {
+        "url": "http://localhost/dvwa/login.php",
+        "category": "login",
+        "source": "crawl",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost/dvwa/login.php",
+        "category": "auth",
+        "source": "attack_surface",
+        "method": "GET"
+      }
+    ],
+    "top_findings": []
+  },
+  {
+    "id": "1775145462",
+    "target": "http://localhost/dvwa/login.php",
+    "scan_time": "02/04/2026 22:57:42",
+    "total_elapsed": "3.2s",
+    "risk_score": 0,
+    "risk_label": "RECON ONLY",
+    "report_path": "reports/recon_report_20260402_225742.html",
+    "pdf_path": "",
+    "vuln_summary": {
+      "total": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "recon_summary": {
+      "total_urls": 1,
+      "total_forms": 1,
+      "total_params": 7,
+      "limitations": []
+    },
+    "highlights": [
+      {
+        "url": "http://localhost/dvwa/login.php",
+        "category": "auth",
+        "source": "attack_surface",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost/dvwa/hackable/uploads/",
+        "category": "upload",
+        "source": "attack_surface",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost/dvwa/vulnerabilities/upload/",
+        "category": "upload",
+        "source": "attack_surface",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost/dashboard/",
+        "category": "admin",
+        "source": "attack_surface",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost/phpmyadmin",
+        "category": "admin",
+        "source": "attack_surface",
+        "method": "GET"
+      }
+    ],
+    "top_findings": []
+  }
+]
