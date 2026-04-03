@@ -25,7 +25,14 @@ Cau truc moi entry:
     "top_findings": [                      # Top 5 lo hong nghiem trong nhat
         {"severity":"HIGH","title":"...","category":"...","cwe":"..."},
         ...
-    ]
+    ],
+    "phase1_data": {                       # Full Phase 1 recon data
+        "target": "http://example.com",
+        "timestamp": "2026-04-03T21:27:33",
+        "passive_recon": {...},            # PassiveReconAgent output
+        "active_recon": {...},             # ActiveReconAgent output
+        "summary": {...}                   # Aggregated summary
+    }
   }
 
 Luu tru: data/scan_history.json (tao tu dong neu chua co)
@@ -111,6 +118,17 @@ def build_entry(target: str, result: dict) -> dict:
         for v in sorted_vulns[:5]
     ]
 
+    # Extract phase1 data for full storage (canonical format from ReconAggregatorAgent)
+    phase1_data = None
+    if phase1:
+        phase1_data = {
+            "target": phase1.get("target", target),
+            "timestamp": phase1.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%S")),
+            "passive_recon": phase1.get("passive_recon", {}),
+            "active_recon": phase1.get("active_recon", {}),
+            "summary": phase1.get("summary", recon_summary),
+        }
+
     return {
         "id":           str(int(time.time())),
         "target":       target,
@@ -136,6 +154,7 @@ def build_entry(target: str, result: dict) -> dict:
         },
         "highlights": highlights[:5],
         "top_findings": top_findings,
+        "phase1_data": phase1_data,  # Full phase1 recon data
     }
 
 

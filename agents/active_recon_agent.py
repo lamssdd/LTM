@@ -170,13 +170,13 @@ class ActiveReconAgent(BaseAgent):
             },
             "cookies_analysis": [],
             "hidden_endpoints": [],
-            "tool_sources": {"nmap": "none", "ffuf": "none", "wafw00f": "none", "banner": "none", "syn_scanner": "none"},
+            "tool_sources": {"nmap_tcp": "none", "syn_scan": "none", "ffuf": "none", "wafw00f": "none", "banner": "none"},
         }
 
         # Lay ToolTracker tu tool_config (optional)
         tracker = (self._tool_config or {}).get("tool_tracker")
 
-        # 1. Availability
+        # 1. HTTP Checker — Availability + Headers + Cookies
         if tracker: tracker.start("http_probe")
         self.log("Checking HTTP/HTTPS availability...")
         result["availability"] = self._check_availability(base_url, hostname)
@@ -185,21 +185,15 @@ class ActiveReconAgent(BaseAgent):
             f"http={avail['http']} | https={avail['https']} | status={avail['status_code']}",
             "success" if avail.get("status_code") else "warning",
         )
-        if tracker: tracker.done("http_probe",
-            summary=f"HTTP:{avail['http']} HTTPS:{avail['https']} Status:{avail.get('status_code','?')}",
-            result=avail)
-
-        # 2. Headers + cookie flags
-        if tracker: tracker.start("headers")
         self.log("Collecting response headers...")
         result["headers"] = self._get_headers(session, base_url)
         self.log(f"Collected {len(result['headers'])} response headers", "info")
         result["cookies_analysis"] = self._analyze_cookies(result["headers"])
         if result["cookies_analysis"]:
             self.log(f"Cookie flags analyzed: {len(result['cookies_analysis'])} cookie(s)", "info")
-        if tracker: tracker.done("headers",
-            summary=f"{len(result['headers'])} headers, {len(result['cookies_analysis'])} cookies",
-            result=result["headers"])
+        if tracker: tracker.done("http_probe",
+            summary=f"HTTP:{avail['http']} HTTPS:{avail['https']} | {len(result['headers'])} headers | {len(result['cookies_analysis'])} cookies",
+            result=avail)
 
         # 3. HTTP methods (OPTIONS-first, safe)
         if tracker: tracker.start("http_methods")
@@ -216,13 +210,13 @@ class ActiveReconAgent(BaseAgent):
                 summary="No dangerous methods detected",
                 result={"methods": []})
 
-        # 4. Port scan
-        if tracker: tracker.start("nmap")
+        # 4. nmap TCP — Port scan
+        if tracker: tracker.start("nmap_tcp")
         self.log("Port scan (nmap if available, else socket)...")
         result["ports"], nmap_src = self._scan_ports(hostname)
-        result["tool_sources"]["nmap"] = nmap_src
+        result["tool_sources"]["nmap_tcp"] = nmap_src
         self.log(f"Open ports: {len(result['ports'])} (source={nmap_src})", "success")
-        if tracker: tracker.done("nmap",
+        if tracker: tracker.done("nmap_tcp",
             summary=f"{len(result['ports'])} open ports (source={nmap_src})",
             result={"ports": result["ports"], "source": nmap_src})
 
@@ -268,7 +262,7 @@ class ActiveReconAgent(BaseAgent):
         self.log("TCP SYN scan (Scapy-based stealth scan)...")
         syn_result, syn_src = self._run_syn_scan(hostname)
         result["syn_scan"] = syn_result
-        result["tool_sources"]["syn_scanner"] = syn_src
+        result["tool_sources"]["syn_scan"] = syn_src
         if syn_result.get("ports"):
             self.log(f"SYN scan: {len(syn_result['ports'])} ports detected (source={syn_src})", "success")
             if tracker: tracker.done("syn_scan",
@@ -1291,14 +1285,15 @@ class ActiveReconAgent(BaseAgent):
         # ═══════════════════════════════════════════════════════════════════════
         # Method 1: Kali SSH with sudo nmap SYN scan (preferred)
         # ═══════════════════════════════════════════════════════════════════════
-        if self.ssh and self.ssh.is_connected():
+        ssh = self._get_ssh()
+        if ssh:
             try:
                 # Use nmap with sudo for SYN scan (-sS requires root)
                 # -Pn: skip host discovery, -n: no DNS resolution
                 cmd = f"sudo nmap -sS -Pn -n -T4 --open -p {ports_str} {hostname} 2>/dev/null | grep -E '^[0-9]+/tcp'"
                 self.log(f"SYN scan via Kali SSH: {hostname}", "info")
-                
-                output = self.ssh.run_command(cmd, timeout=120)
+
+                output, _, _ = ssh.run(cmd, timeout=120)
                 
                 if output:
                     open_ports = []

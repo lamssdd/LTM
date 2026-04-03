@@ -32,10 +32,13 @@ _EMPTY_PASSIVE = {
         "server": "", "cms": "", "frameworks": [],
         "libraries": [], "security_headers": {}, "whatweb": [],
     },
-    "theharvester": {"emails": [], "hosts": [], "ips": [], "source": ""},
-    "sublist3r":    {"subdomains": [], "source": ""},
-    "crtsh":        {"subdomains": [], "source": ""},
-    "wayback":      {"urls": [], "source": ""},
+    "theharvester":  {"emails": [], "hosts": [], "ips": [], "source": ""},
+    "amass":         {"subdomains": [], "source": ""},
+    "subfinder":     {"subdomains": [], "source": ""},
+    "crtsh":         {"subdomains": [], "source": ""},
+    "wayback":       {"urls": [], "source": ""},
+    "shodan":        {"ports": [], "vulns": [], "hostnames": [], "source": ""},
+    "google_dorks":  {"files": [], "pages": [], "exposed": [], "source": ""},
 }
 
 _EMPTY_ACTIVE = {
@@ -53,7 +56,7 @@ _EMPTY_ACTIVE = {
     "discovery": {"robots": {}, "sitemap_urls": []},
     "cookies_analysis": [],
     "hidden_endpoints": [],
-    "tool_sources": {"nmap": "none", "ffuf": "none", "wafw00f": "none", "banner": "none", "syn_scanner": "none"},
+    "tool_sources": {"nmap_tcp": "none", "syn_scan": "none", "ffuf": "none", "wafw00f": "none", "banner": "none"},
 }
 
 
@@ -124,17 +127,20 @@ class ReconAggregatorAgent(BaseAgent):
             "whatweb":          raw_tech.get("whatweb", []),
         }
         return {
-            "domain":       p.get("domain", ""),
-            "ip_addresses": p.get("ip_addresses", []),
-            "whois":        p.get("whois", {}),
-            "dns_records":  p.get("dns_records", _EMPTY_PASSIVE["dns_records"]),
-            "subdomains":   p.get("subdomains", []),
-            "ssl":          p.get("ssl", {}),
-            "technology":   technology,
-            "theharvester": p.get("theharvester", _EMPTY_PASSIVE["theharvester"]),
-            "sublist3r":    p.get("sublist3r",    _EMPTY_PASSIVE["sublist3r"]),
-            "crtsh":        p.get("crtsh",        _EMPTY_PASSIVE["crtsh"]),
-            "wayback":      p.get("wayback",      _EMPTY_PASSIVE["wayback"]),
+            "domain":        p.get("domain", ""),
+            "ip_addresses":  p.get("ip_addresses", []),
+            "whois":         p.get("whois", {}),
+            "dns_records":   p.get("dns_records", _EMPTY_PASSIVE["dns_records"]),
+            "subdomains":    p.get("subdomains", []),
+            "ssl":           p.get("ssl", {}),
+            "technology":    technology,
+            "theharvester":  p.get("theharvester",  _EMPTY_PASSIVE["theharvester"]),
+            "amass":         p.get("amass",         _EMPTY_PASSIVE["amass"]),
+            "subfinder":     p.get("subfinder",     _EMPTY_PASSIVE["subfinder"]),
+            "crtsh":         p.get("crtsh",         _EMPTY_PASSIVE["crtsh"]),
+            "wayback":       p.get("wayback",       _EMPTY_PASSIVE["wayback"]),
+            "shodan":        p.get("shodan",        _EMPTY_PASSIVE["shodan"]),
+            "google_dorks":  p.get("google_dorks",  _EMPTY_PASSIVE["google_dorks"]),
         }
 
     def _build_active(self, a: dict) -> dict:
@@ -246,7 +252,7 @@ class ReconAggregatorAgent(BaseAgent):
 
         # --- Tools (use tool_sources metadata from ActiveReconAgent) ---
         tool_src = active.get("tool_sources", {})
-        nmap_src = tool_src.get("nmap", "")
+        nmap_src = tool_src.get("nmap_tcp", "")
         ffuf_src = tool_src.get("ffuf", "")
         # Fallback: infer from port/hidden source fields if metadata missing
         if not nmap_src:

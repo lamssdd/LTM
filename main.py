@@ -34,6 +34,7 @@ import time
 import threading
 import queue
 import random
+import msvcrt  # Windows keyboard input
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Optional, Callable
@@ -195,9 +196,156 @@ class LogManager:
             return self._logs[-limit:]
     
     def clear(self):
-        """Clear all logs."""
+        """Clear all logs including pending queue items."""
         with self._lock:
             self._logs.clear()
+        # Drain the queue so old entries don't bleed into the new scan
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Real Scan Bridge  (connects agents → ScanState + LogManager)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ScanBridge:
+    """
+    Bridge agent events to ScanState and LogManager for real scans.
+
+    Responsibilities:
+    - Real progress %  (passive 45% + active 45% + aggregate 10%)
+    - Phase-aware log separation (passive vs active never mixed)
+    - Error sanitization (no raw Python tracebacks shown)
+    - Phase state labels: [QUEUED] [RUNNING] [COMPLETE] [FAILED]
+    """
+
+    _ERROR_MAP = {
+        "has no attribute":          "Module not configured or unsupported for this target",
+        "NoneType":                  "Component returned no data",
+        "Connection refused":        "Target refused connection",
+        "timed out":                 "Request timed out — target may be slow or filtered",
+        "Name or service not known": "Cannot resolve hostname — check target",
+        "SSLError":                  "SSL/TLS error — target may not support HTTPS",
+        "ConnectionResetError":      "Connection reset by target",
+        "Max retries exceeded":      "Target unreachable — max retries exceeded",
+    }
+
+    _PASSIVE_TOOLS = {
+        "ip_resolve", "dns", "whois", "ssl", "whatweb",
+        "amass", "subfinder", "crtsh", "theharvester", "wayback", "shodan", "google_dorks",
+    }
+    _ACTIVE_TOOLS = {
+        "http_probe", "http_methods", "nmap_tcp", "syn_scan",
+        "wafw00f", "banner_grab", "robots", "crawl", "ffuf",
+    }
+
+    def __init__(self, state: ScanState, log_manager: LogManager):
+        self.state       = state
+        self.log_manager = log_manager
+        self._lock       = threading.Lock()
+        self._done       = {"passive": set(), "active": set(), "aggregate": set()}
+
+    @classmethod
+    def sanitize(cls, msg: str) -> str:
+        """Convert raw Python errors to human-readable messages."""
+        for pattern, friendly in cls._ERROR_MAP.items():
+            if pattern.lower() in msg.lower():
+                return friendly
+        if "Traceback" in msg or 'File "' in msg:
+            return "Internal module error — check configuration"
+        return msg
+
+    def _recalc_progress(self):
+        p = len(self._done["passive"])  / len(self._PASSIVE_TOOLS) * 45
+        a = len(self._done["active"])   / len(self._ACTIVE_TOOLS)  * 45
+        g = min(len(self._done["aggregate"]), 1)                   * 10
+        self.state.progress = int(min(p + a + g, 100))
+
+    def make_log_callback(self, phase: str, agent_name: str):
+        """Return a log_callback for one phase — logs never cross phases."""
+        phase_level = {
+            "passive":   LogLevel.PASSIVE,
+            "active":    LogLevel.ACTIVE,
+            "aggregate": LogLevel.AGENT,
+        }.get(phase, LogLevel.SYSTEM)
+
+        def callback(entry: dict):
+            if not isinstance(entry, dict):
+                return
+            message = entry.get("message", "")
+            if not message:
+                return
+            raw = entry.get("level", "info").lower()
+            if raw == "error":
+                level   = LogLevel.ERROR
+                message = self.sanitize(message)
+            elif raw in ("warning", "warn"):
+                level = LogLevel.WARNING
+            elif raw in ("success", "done"):
+                level = LogLevel.SUCCESS
+            else:
+                level = phase_level
+            self.log_manager.log(level, agent_name, message)
+
+        return callback
+
+    def make_tool_tracker(self):
+        """Return a ToolTracker-compatible adapter for agent injection."""
+        return _BridgeToolTracker(self)
+
+    def tool_done(self, phase: str, tool: str):
+        with self._lock:
+            self._done[phase].add(tool)
+            self._recalc_progress()
+
+    def aggregate_done(self):
+        with self._lock:
+            self._done["aggregate"].add("aggregate")
+            self._recalc_progress()
+
+
+class _BridgeToolTracker:
+    """
+    ToolTracker-compatible adapter injected into tool_config["tool_tracker"].
+    Routes start/done/error events through ScanBridge for progress tracking.
+    """
+
+    def __init__(self, bridge: ScanBridge):
+        self._bridge  = bridge
+        self._current = None
+        self.state    = {}  # minimal compatibility shim
+
+    @property
+    def current_tool(self):
+        return self._current
+
+    @property
+    def counts(self):
+        return {"done": 0, "error": 0, "running": 0, "pending": 0}
+
+    def start(self, name: str):
+        self._current = name
+
+    def done(self, name: str, summary: str = "", result: dict = None):  # noqa: ARG002
+        if self._current == name:
+            self._current = None
+        phase = "active" if name in ScanBridge._ACTIVE_TOOLS else "passive"
+        self._bridge.tool_done(phase, name)
+
+    def error(self, name: str, error: str = ""):  # noqa: ARG002
+        if self._current == name:
+            self._current = None
+        phase = "active" if name in ScanBridge._ACTIVE_TOOLS else "passive"
+        self._bridge.tool_done(phase, name)   # advance progress even on error
+
+    def add_log(self, name: str, msg: str):  # noqa: ARG002
+        pass   # logs are handled by the phase log_callback
+
+    def snapshot(self) -> dict:
+        return {}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -383,302 +531,307 @@ class ReportSimulator(SimulatedAgent):
 
 class DashboardUI:
     """Renders the Sentinel v3 Dashboard using Rich."""
-    
+
+    _LEVEL_STYLES = {
+        LogLevel.PASSIVE:  ("Passive",  Theme.PASSIVE),
+        LogLevel.ACTIVE:   ("Active",   Theme.ACTIVE),
+        LogLevel.AGENT:    ("Agent",    Theme.AGENT),
+        LogLevel.EXTERNAL: ("External", Theme.EXTERNAL),
+        LogLevel.STRATEGY: ("Strategy", Theme.STRATEGY),
+        LogLevel.SYSTEM:   ("System",   Theme.SYSTEM),
+        LogLevel.ERROR:    ("ERROR",    Theme.ERROR),
+        LogLevel.SUCCESS:  ("SUCCESS",  Theme.SUCCESS),
+        LogLevel.WARNING:  ("WARNING",  Theme.WARNING),
+    }
+
     def __init__(self, state: ScanState, log_manager: LogManager):
-        self.console = Console()
-        self.state = state
+        self.console    = Console()
+        self.state      = state
         self.log_manager = log_manager
         self.active_tab = 0
-        self.tabs = ["Execution Log", "Agent Status", "Statistics", "Timeline"]
-    
+        self.tabs = ["Nhật ký", "Trạng thái Agent", "Thống kê"]
+        # Log scroll state
+        self.log_scroll_offset = 0  # 0 = bottom (newest), >0 = scroll up
+        self.auto_scroll = True     # Auto-scroll to newest logs
+
+    # ── Header ────────────────────────────────────────────────────────────────
+
     def render_header(self) -> Panel:
-        """Render the header with title and status."""
-        title = Text()
-        title.append("█▀ █▀▀ █▄░█ ▀█▀ █ █▄░█ █▀▀ █░░   ", style="bright_blue bold")
-        title.append("v3", style="cyan bold")
-        title.append("\n", style="")
-        title.append("█▄ ██▄ █░▀█ ░█░ █ █░▀█ ██▄ █▄▄   ", style="bright_blue bold")
-        title.append("Enterprise Pentest Multi-Agent System", style="dim cyan")
-        
-        return Panel(
-            Align.center(title),
-            border_style="bright_blue",
-            box=box.DOUBLE,
-            padding=(0, 2),
-        )
-    
-    def render_target_info(self) -> Panel:
-        """Render target information panel."""
-        table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column("Label", style="bright_blue bold")
-        table.add_column("Value", style="bright_white")
-        
-        table.add_row("🎯 Target:", self.state.target or "[dim]Not specified[/dim]")
-        table.add_row("📊 Phase:", f"[cyan]{self.state.phase}[/cyan]")
-        table.add_row("⏱️  Status:", self._get_status_text())
-        
-        if self.state.start_time:
-            elapsed = time.time() - self.state.start_time
-            table.add_row("⌛ Elapsed:", f"{elapsed:.1f}s")
-        
-        return Panel(
-            table,
-            title="[bright_blue bold]Target Information[/bright_blue bold]",
-            border_style="blue",
-            box=box.ROUNDED,
-        )
-    
-    def _get_status_text(self) -> str:
-        """Get formatted status text."""
-        status_map = {
-            "idle": "[dim]● Idle[/dim]",
-            "running": "[green]● Running[/green]",
-            "paused": "[yellow]● Paused[/yellow]",
-            "done": "[bright_green]✓ Complete[/bright_green]",
-            "error": "[red]✗ Error[/red]",
+        """Compact single-line header."""
+        t = Text(justify="center")
+        t.append("CENTINEL ", style="bright_blue bold")
+        t.append("v3", style="cyan bold")
+        t.append("  —  Enterprise Pentest Multi-Agent System", style="dim cyan")
+        return Panel(t, border_style="bright_blue", box=box.DOUBLE, padding=(0, 2))
+
+    # ── Runtime info (LEFT) ───────────────────────────────────────────────────
+
+    def _progress_bar(self, pct: int, width: int = 24) -> Text:
+        filled = int(width * pct / 100)
+        bar = Text()
+        bar.append("█" * filled,            style="cyan")
+        bar.append("░" * (width - filled),  style="dim blue")
+        bar.append(f"  {pct:3d}%",          style="bold bright_blue")
+        return bar
+
+    def _status_text(self) -> Text:
+        mp = {
+            "idle":    ("●  Chờ",       "dim"),
+            "running": ("●  Đang chạy", "green bold"),
+            "done":    ("✓  Hoàn tất",  "bright_green bold"),
+            "error":   ("✗  Lỗi",       "red bold"),
         }
-        return status_map.get(self.state.status, self.state.status)
-    
-    def render_controls(self) -> Panel:
-        """Render control buttons."""
-        buttons = []
-        
-        if self.state.status == "idle":
-            buttons.append(Text(" ▶ Run Sentinel ", style="black on bright_green bold"))
-        elif self.state.status == "running":
-            buttons.append(Text(" ⏹ Stop Scan ", style="black on red bold"))
-        else:
-            buttons.append(Text(" ▶ Run Sentinel ", style="black on bright_green bold"))
-        
-        buttons.append(Text("   ", style=""))
-        buttons.append(Text(" ⚙ Settings ", style="black on bright_blue"))
-        buttons.append(Text("   ", style=""))
-        buttons.append(Text(" 📄 Export ", style="black on cyan"))
-        buttons.append(Text("   ", style=""))
-        buttons.append(Text(" ❓ Help ", style="black on magenta"))
-        
+        label, style = mp.get(self.state.status, (self.state.status, "white"))
+        return Text(label, style=style)
+
+    def _current_task(self) -> str:
+        for agent in self.state.agents.values():
+            if agent.status == "running" and agent.current_task:
+                return agent.current_task
+        return "—"
+
+    def render_runtime_panel(self) -> Panel:
+        """
+        Compact left panel — all runtime info in one box:
+        Target  |  Phase  |  Status  |  Elapsed  |  Task  |  Progress
+        """
+        elapsed = (
+            f"{time.time() - self.state.start_time:.1f}s"
+            if self.state.start_time else "—"
+        )
+
+        tbl = Table(show_header=False, box=None, padding=(0, 1), expand=True)
+        tbl.add_column("k", style="bright_blue bold", no_wrap=True, width=13)
+        tbl.add_column("v", overflow="fold")
+
+        tbl.add_row("🎯 Mục tiêu",   Text(self.state.target or "—", style="bright_white"))
+        tbl.add_row("📊 Giai đoạn",  Text(self.state.phase,         style="cyan"))
+        tbl.add_row("⚡ Trạng thái", self._status_text())
+        tbl.add_row("⌛ Thời gian",  Text(elapsed,                  style="white"))
+        tbl.add_row("🔧 Tác vụ",     Text(self._current_task(),     style="dim cyan"))
+        tbl.add_row("📈 Tiến trình", self._progress_bar(self.state.progress))
+
         return Panel(
-            Align.center(Text.assemble(*buttons)),
+            tbl,
+            title="[bright_blue bold]Thông tin quét[/bright_blue bold]",
             border_style="blue",
             box=box.ROUNDED,
             padding=(0, 1),
         )
-    
-    def render_progress(self) -> Panel:
-        """Render progress bar."""
-        progress = Progress(
-            SpinnerColumn(spinner_name="dots", style="cyan"),
-            TextColumn("[bright_blue]{task.description}[/bright_blue]"),
-            BarColumn(bar_width=40, style="blue", complete_style="cyan"),
-            TextColumn("[cyan]{task.percentage:>3.0f}%[/cyan]"),
-            TimeElapsedColumn(),
-            expand=True,
-        )
-        
-        task = progress.add_task(
-            f"Phase: {self.state.phase}",
-            total=100,
-            completed=self.state.progress
-        )
-        
+
+    # ── Actions (RIGHT) ───────────────────────────────────────────────────────
+
+    def render_actions(self) -> Panel:
+        """Compact right panel — action buttons stacked vertically."""
+        if self.state.status == "running":
+            primary = Text("  ⏹  Dừng quét  ", style="black on red bold")
+        else:
+            primary = Text("  ▶  Chạy quét  ", style="black on bright_green bold")
+
+        lines = Text(justify="center")
+        lines.append_text(primary)
+        lines.append("\n\n")
+        lines.append("  ⚙  Cài đặt  ", style="black on bright_blue")
+        lines.append("   ")
+        lines.append("  📄  Xuất  ",   style="black on cyan")
+        lines.append("\n\n")
+        lines.append("  ❓  Trợ giúp  ", style="black on magenta")
+
         return Panel(
-            progress,
-            title="[bright_blue bold]Progress[/bright_blue bold]",
+            Align.center(lines, vertical="middle"),
+            title="[bright_blue bold]Thao tác[/bright_blue bold]",
             border_style="blue",
             box=box.ROUNDED,
         )
-    
+
+    # ── Tabs ──────────────────────────────────────────────────────────────────
+
     def render_tabs(self) -> Text:
-        """Render tab navigation."""
         tabs = Text()
-        for i, tab_name in enumerate(self.tabs):
-            if i == self.active_tab:
-                tabs.append(f" {tab_name} ", style="bold bright_white on blue")
-            else:
-                tabs.append(f" {tab_name} ", style="bright_blue")
-            tabs.append("  ", style="")
+        for i, name in enumerate(self.tabs):
+            style = "bold bright_white on blue" if i == self.active_tab else "bright_blue"
+            tabs.append(f"  {name}  ", style=style)
+            tabs.append(" ")
         return tabs
-    
+
+    # ── Log panel ─────────────────────────────────────────────────────────────
+
     def render_log_panel(self) -> Panel:
-        """Render the main console log panel."""
-        # Process any new logs
+        """
+        Log panel — fills all remaining vertical space.
+        Supports scrolling with Page Up/Down keys.
+        """
         self.log_manager.process_queue()
+        all_logs = self.log_manager.get_logs(limit=500)
+        total = len(all_logs)
         
-        logs = self.log_manager.get_logs(limit=35)  # Show more logs (was 20)
+        # Display window size
+        display_limit = 25  # Number of lines visible at once
         
+        # Calculate scroll position
+        if self.auto_scroll:
+            # Auto-scroll: show newest logs
+            start_idx = max(0, total - display_limit)
+        else:
+            # Manual scroll: respect scroll offset
+            start_idx = max(0, total - display_limit - self.log_scroll_offset)
+        
+        end_idx = start_idx + display_limit
+        logs = all_logs[start_idx:end_idx]
+
         log_text = Text()
-        for entry in logs:
-            # Timestamp
-            log_text.append(f"[{entry.timestamp}] ", style=Theme.TIMESTAMP)
-            
-            # Level/Category badge
-            level_styles = {
-                LogLevel.PASSIVE: ("Passive", Theme.PASSIVE),
-                LogLevel.ACTIVE: ("Active", Theme.ACTIVE),
-                LogLevel.AGENT: ("Agent", Theme.AGENT),
-                LogLevel.EXTERNAL: ("External", Theme.EXTERNAL),
-                LogLevel.STRATEGY: ("Strategy", Theme.STRATEGY),
-                LogLevel.SYSTEM: ("System", Theme.SYSTEM),
-                LogLevel.ERROR: ("ERROR", Theme.ERROR),
-                LogLevel.SUCCESS: ("SUCCESS", Theme.SUCCESS),
-                LogLevel.WARNING: ("WARNING", Theme.WARNING),
-            }
-            
-            label, style = level_styles.get(entry.level, ("Info", "white"))
+        for i, entry in enumerate(logs):
+            line_num = start_idx + i + 1
+            log_text.append(f"[{line_num:03d}] ", style="dim")
+            log_text.append(f"{entry.timestamp} ", style=Theme.TIMESTAMP)
+            label, style = self._LEVEL_STYLES.get(entry.level, ("Info", "white"))
             log_text.append(f"[{label}]", style=f"bold {style}")
-            
-            # Category
             if entry.category:
                 log_text.append(f"[{entry.category}]", style="dim cyan")
-            
-            # Message
             log_text.append(f" {entry.message}\n", style="white")
-        
+
         if not logs:
-            log_text.append("[dim]Waiting for scan to start...[/dim]")
+            log_text.append("\n  [dim]Đang chờ quét bắt đầu...[/dim]")
+
+        # Scroll indicator
+        scroll_info = ""
+        if not self.auto_scroll:
+            scroll_info = f" | [yellow]PAUSED[/yellow] (nhấn END để tiếp tục)"
+        elif self.log_scroll_offset > 0:
+            scroll_info = f" | Scroll: +{self.log_scroll_offset}"
         
+        subtitle = f"[dim]{total} dòng | PgUp/PgDn: cuộn | HOME/END: đầu/cuối{scroll_info}[/dim]"
+
         return Panel(
             log_text,
             title=f"[bright_blue bold]{self.tabs[self.active_tab]}[/bright_blue bold]",
-            subtitle="[dim]View full log after scan (Option 5)[/dim]",
+            subtitle=subtitle,
             border_style="blue",
             box=box.ROUNDED,
-            height=28,  # Taller panel for more logs
         )
     
+    def scroll_log_up(self, lines: int = 10):
+        """Scroll log up (view older entries)."""
+        self.auto_scroll = False
+        total = len(self.log_manager.get_logs(limit=500))
+        max_offset = max(0, total - 25)  # 25 is display_limit
+        self.log_scroll_offset = min(self.log_scroll_offset + lines, max_offset)
+    
+    def scroll_log_down(self, lines: int = 10):
+        """Scroll log down (view newer entries)."""
+        self.log_scroll_offset = max(0, self.log_scroll_offset - lines)
+        if self.log_scroll_offset == 0:
+            self.auto_scroll = True
+    
+    def scroll_to_top(self):
+        """Scroll to oldest log."""
+        self.auto_scroll = False
+        total = len(self.log_manager.get_logs(limit=500))
+        self.log_scroll_offset = max(0, total - 25)
+    
+    def scroll_to_bottom(self):
+        """Scroll to newest log and resume auto-scroll."""
+        self.log_scroll_offset = 0
+        self.auto_scroll = True
+
+    # ── Bottom panels ─────────────────────────────────────────────────────────
+
+    def _mini_bar(self, pct: int, width: int = 12) -> Text:
+        filled = int(width * pct / 100)
+        t = Text()
+        t.append("█" * filled,           style="cyan")
+        t.append("░" * (width - filled), style="dim blue")
+        t.append(f" {pct}%",             style="bright_blue")
+        return t
+
     def render_agent_status(self) -> Panel:
-        """Render agent status panel."""
-        table = Table(
-            show_header=True,
-            header_style="bold bright_blue",
-            border_style="blue",
-            box=box.SIMPLE,
-            expand=True,
+        tbl = Table(
+            show_header=True, header_style="bold bright_blue",
+            border_style="blue", box=box.SIMPLE, expand=True,
         )
-        
-        table.add_column("Agent", style="cyan")
-        table.add_column("Status", justify="center")
-        table.add_column("Task", style="dim")
-        table.add_column("Progress", justify="right")
-        
-        default_agents = ["PassiveRecon", "ActiveRecon", "Reporter"]
-        
-        for agent_name in default_agents:
-            agent = self.state.agents.get(agent_name, AgentStatus(agent_name))
-            
-            status_icons = {
-                "idle": "[dim]○[/dim]",
-                "running": "[green]●[/green]",
-                "done": "[bright_green]✓[/bright_green]",
-                "error": "[red]✗[/red]",
-            }
-            status = status_icons.get(agent.status, "○")
-            
-            progress_bar = self._mini_progress_bar(agent.progress)
-            
-            table.add_row(
-                agent_name,
-                status,
-                agent.current_task or "-",
-                progress_bar,
-            )
-        
-        return Panel(
-            table,
-            title="[bright_blue bold]Agent Status[/bright_blue bold]",
-            border_style="blue",
-            box=box.ROUNDED,
-        )
-    
-    def _mini_progress_bar(self, progress: int, width: int = 15) -> Text:
-        """Create a mini progress bar."""
-        filled = int(width * progress / 100)
-        empty = width - filled
-        
-        bar = Text()
-        bar.append("█" * filled, style="cyan")
-        bar.append("░" * empty, style="dim blue")
-        bar.append(f" {progress}%", style="bright_blue")
-        return bar
-    
+        tbl.add_column("Agent",      style="cyan",    width=14)
+        tbl.add_column("ST",         justify="center", width=3)
+        tbl.add_column("Tác vụ",     style="dim",     ratio=1)
+        tbl.add_column("Tiến trình", justify="right", width=18)
+
+        icons = {"idle": "[dim]○[/dim]", "running": "[green]●[/green]",
+                 "done": "[bright_green]✓[/bright_green]", "error": "[red]✗[/red]"}
+
+        for name in ("PassiveRecon", "ActiveRecon", "Reporter"):
+            ag = self.state.agents.get(name, AgentStatus(name))
+            tbl.add_row(name, icons.get(ag.status, "○"),
+                        ag.current_task or "—", self._mini_bar(ag.progress))
+
+        return Panel(tbl,
+                     title="[bright_blue bold]Agent[/bright_blue bold]",
+                     border_style="blue", box=box.ROUNDED)
+
     def render_stats(self) -> Panel:
-        """Render statistics panel."""
         stats = self.state.stats
-        
-        table = Table(show_header=False, box=None, expand=True, padding=(0, 2))
-        table.add_column("Stat", style="bright_blue")
-        table.add_column("Value", justify="right", style="cyan bold")
-        
-        stat_items = [
-            ("🌐 URLs", stats.get("urls", 0)),
-            ("📝 Forms", stats.get("forms", 0)),
-            ("🔧 Params", stats.get("params", 0)),
-            ("🔌 Ports", stats.get("ports", 0)),
-            ("🌍 Subdomains", stats.get("subdomains", 0)),
-            ("📧 Emails", stats.get("emails", 0)),
-            ("⚠️  Vulns", stats.get("vulns", 0)),
-        ]
-        
-        for label, value in stat_items:
-            table.add_row(label, str(value))
-        
-        return Panel(
-            table,
-            title="[bright_blue bold]Statistics[/bright_blue bold]",
-            border_style="blue",
-            box=box.ROUNDED,
-        )
-    
+        tbl = Table(show_header=False, box=None, expand=True, padding=(0, 1))
+        tbl.add_column("Stat",  style="bright_blue")
+        tbl.add_column("Value", justify="right", style="cyan bold")
+        for label, key in [
+            ("🌐 URLs",      "urls"),
+            ("📝 Forms",     "forms"),
+            ("🔧 Params",    "params"),
+            ("🔌 Ports",     "ports"),
+            ("🌍 Subdomains","subdomains"),
+            ("📧 Emails",    "emails"),
+            ("⚠️  Vulns",    "vulns"),
+        ]:
+            tbl.add_row(label, str(stats.get(key, 0)))
+        return Panel(tbl,
+                     title="[bright_blue bold]Thống kê[/bright_blue bold]",
+                     border_style="blue", box=box.ROUNDED)
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+
     def render_footer(self) -> Text:
-        """Render footer with keyboard shortcuts."""
-        footer = Text()
-        footer.append(" [Q]", style="bold cyan")
-        footer.append(" Quit  ", style="dim")
-        footer.append("[R]", style="bold cyan")
-        footer.append(" Run  ", style="dim")
-        footer.append("[S]", style="bold cyan")
-        footer.append(" Stop  ", style="dim")
-        footer.append("[Tab]", style="bold cyan")
-        footer.append(" Switch Tab  ", style="dim")
-        footer.append("[E]", style="bold cyan")
-        footer.append(" Export  ", style="dim")
-        return Align.center(footer)
-    
+        t = Text(justify="center")
+        for key, label in [("Q","Thoát"), ("R","Chạy"), ("S","Dừng"), ("5","Log đầy đủ")]:
+            t.append(f" [{key}]", style="bold cyan")
+            t.append(f" {label}  ", style="dim")
+        return t
+
+    # ── Master render ─────────────────────────────────────────────────────────
+
     def render(self) -> Group:
-        """Render the complete dashboard."""
-        # Create layout
+        """
+        Compact layout:
+          header   (3)   — single-line title
+          top_row  (9)   — [runtime_panel | actions]  (merged info + progress)
+          tabs     (1)   — tab bar
+          main     (*)   — log panel fills remaining height  ← fixes scroll feel
+          bottom   (6)   — [agent status | stats]
+          footer   (1)   — shortcuts
+        """
         layout = Layout()
-        
         layout.split_column(
-            Layout(name="header", size=5),
-            Layout(name="info_row", size=7),
-            Layout(name="progress", size=5),
-            Layout(name="tabs", size=1),
-            Layout(name="main", size=24),
-            Layout(name="bottom", size=7),
+            Layout(name="header", size=3),
+            Layout(name="top_row", size=9),
+            Layout(name="tabs",   size=1),
+            Layout(name="main"),           # no size → fills remaining space
+            Layout(name="bottom", size=6),
             Layout(name="footer", size=1),
         )
-        
+
         layout["header"].update(self.render_header())
-        
-        # Info row: target + controls
-        layout["info_row"].split_row(
-            Layout(self.render_target_info(), name="target"),
-            Layout(self.render_controls(), name="controls"),
+
+        layout["top_row"].split_row(
+            Layout(self.render_runtime_panel(), name="runtime", ratio=3),
+            Layout(self.render_actions(),       name="actions", ratio=1),
         )
-        
-        layout["progress"].update(self.render_progress())
+
         layout["tabs"].update(Align.center(self.render_tabs()))
         layout["main"].update(self.render_log_panel())
-        
-        # Bottom row: agent status + stats
+
         layout["bottom"].split_row(
             Layout(self.render_agent_status(), name="agents", ratio=2),
-            Layout(self.render_stats(), name="stats", ratio=1),
+            Layout(self.render_stats(),        name="stats",  ratio=1),
         )
-        
+
         layout["footer"].update(self.render_footer())
-        
         return Group(layout)
 
 
@@ -767,64 +920,102 @@ class SentinelApp:
         """Run a real scan using the actual agents."""
         if self.running:
             return
-        
+
         self.running = True
-        self.state.status = "running"
+        self.state.status   = "running"
+        self.state.progress = 0
         self.state.start_time = time.time()
-        
+        self.state.agents   = {}
+
         def execute_scan():
             try:
                 from utils import load_dotenv, build_tool_config
                 from memory import ScanMemory
-                from agents.passive_recon_agent import PassiveReconAgent
-                from agents.active_recon_agent import ActiveReconAgent
+                from agents.passive_recon_agent    import PassiveReconAgent
+                from agents.active_recon_agent     import ActiveReconAgent
                 from agents.recon_aggregator_agent import ReconAggregatorAgent
-                
+                import os as _os
+
                 load_dotenv()
-                
-                memory = ScanMemory(self.state.target)
+
+                bridge      = ScanBridge(self.state, self.log_manager)
+                memory      = ScanMemory(self.state.target)
                 tool_config = build_tool_config()
-                
-                # Passive Recon
-                self.state.phase = "Phase 1a: Passive Recon"
-                self.log_manager.log(LogLevel.SYSTEM, "System", "Starting Passive Reconnaissance...")
-                
-                def log_cb(entry):
-                    level = LogLevel.PASSIVE
-                    if "active" in entry.get("agent", "").lower():
-                        level = LogLevel.ACTIVE
-                    self.log_manager.log(level, entry.get("agent", ""), entry.get("message", ""))
-                
-                passive = PassiveReconAgent(log_callback=log_cb, memory=memory, tool_config=tool_config)
-                passive.run(self.state.target)
-                
-                self.state.progress = 30
-                
-                # Active Recon
-                self.state.phase = "Phase 1b: Active Recon"
-                self.log_manager.log(LogLevel.SYSTEM, "System", "Starting Active Reconnaissance...")
-                
-                active = ActiveReconAgent(log_callback=log_cb, memory=memory, tool_config=tool_config)
-                active.run(self.state.target)
-                
-                self.state.progress = 70
-                
-                # Aggregation
-                self.state.phase = "Phase 1c: Reporting"
-                self.log_manager.log(LogLevel.SYSTEM, "System", "Generating report...")
-                
-                aggregator = ReconAggregatorAgent(log_callback=log_cb, memory=memory, output_dir="data")
-                aggregator.run(self.state.target)
-                
+                tool_config["tool_tracker"] = bridge.make_tool_tracker()
+
+                # ── Phase 1a: Passive Recon ───────────────────────────────────
+                self.state.phase = "Phase 1a: Passive Recon  [RUNNING]"
+                self.state.agents["PassiveRecon"] = AgentStatus("PassiveRecon", "running")
+                self.log_manager.log(LogLevel.SYSTEM, "System",
+                                     "Starting Passive Reconnaissance...")
+
+                PassiveReconAgent(
+                    log_callback=bridge.make_log_callback("passive", "PassiveRecon"),
+                    memory=memory,
+                    tool_config=tool_config,
+                ).run(self.state.target)
+
+                self.state.agents["PassiveRecon"].status   = "done"
+                self.state.agents["PassiveRecon"].progress = 100
+                self.state.phase = "Phase 1a: Passive Recon  [COMPLETE]"
+                self.log_manager.log(LogLevel.SUCCESS, "System",
+                                     "Passive Recon complete")
+
+                if not self.running:
+                    return
+
+                # ── Phase 1b: Active Recon ────────────────────────────────────
+                self.state.phase = "Phase 1b: Active Recon  [RUNNING]"
+                self.state.agents["ActiveRecon"] = AgentStatus("ActiveRecon", "running")
+                self.log_manager.log(LogLevel.SYSTEM, "System",
+                                     "Starting Active Reconnaissance...")
+
+                ActiveReconAgent(
+                    log_callback=bridge.make_log_callback("active", "ActiveRecon"),
+                    memory=memory,
+                    tool_config=tool_config,
+                ).run(self.state.target)
+
+                self.state.agents["ActiveRecon"].status   = "done"
+                self.state.agents["ActiveRecon"].progress = 100
+                self.state.phase = "Phase 1b: Active Recon  [COMPLETE]"
+                self.log_manager.log(LogLevel.SUCCESS, "System",
+                                     "Active Recon complete")
+
+                if not self.running:
+                    return
+
+                # ── Phase 1c: Aggregation (only after both phases done) ────────
+                self.state.phase = "Phase 1c: Aggregation  [RUNNING]"
+                self.state.agents["Reporter"] = AgentStatus("Reporter", "running")
+                self.log_manager.log(LogLevel.SYSTEM, "System",
+                                     "Aggregating results...")
+
+                data_dir = _os.path.join(_os.path.dirname(__file__), "data")
+                _os.makedirs(data_dir, exist_ok=True)
+
+                ReconAggregatorAgent(
+                    log_callback=bridge.make_log_callback("aggregate", "Aggregator"),
+                    memory=memory,
+                    output_dir=data_dir,
+                ).run(self.state.target)
+
+                bridge.aggregate_done()
+                self.state.agents["Reporter"].status   = "done"
+                self.state.agents["Reporter"].progress = 100
+
+                # ── Complete — only set here, after ALL phases done ───────────
                 self.state.progress = 100
-                self.state.status = "done"
-                self.state.phase = "Complete"
-                self.log_manager.log(LogLevel.SUCCESS, "System", "Scan completed successfully!")
-                
-            except Exception as e:
+                self.state.status   = "done"
+                self.state.phase    = "Complete"
+                self.log_manager.log(LogLevel.SUCCESS, "System",
+                                     "Sentinel v3 scan completed successfully!")
+
+            except Exception as exc:
                 self.state.status = "error"
-                self.log_manager.log(LogLevel.ERROR, "System", f"Error: {e}")
-        
+                self.log_manager.log(LogLevel.ERROR, "System",
+                                     ScanBridge.sanitize(str(exc)))
+
         threading.Thread(target=execute_scan, daemon=True).start()
     
     def run(self):
@@ -834,26 +1025,23 @@ class SentinelApp:
         # Welcome message
         if not self.state.target:
             console.print("\n[bold bright_blue]Sentinel v3[/bold bright_blue] - Enterprise Pentest Multi-Agent\n")
-            self.state.target = console.input("[cyan]Enter target URL:[/cyan] ").strip()
+            self.state.target = console.input("[cyan]Nhập URL mục tiêu:[/cyan] ").strip()
             if not self.state.target:
                 self.state.target = "http://testfire.net"
                 console.print(f"[dim]Using default target: {self.state.target}[/dim]")
         
-        # Update progress during scan
-        def update_progress():
+        # Demo mode only: calculate progress from simulated agent states.
+        # Real scan progress is tracked by ScanBridge per tool — no override needed.
+        def update_progress_demo():
             while self.running:
-                if self.state.status == "running":
-                    # Calculate progress from agent states
-                    total = 0
-                    count = 0
-                    for agent in self.state.agents.values():
-                        total += agent.progress
-                        count += 1
+                if self.state.status == "running" and self.demo_mode:
+                    total = sum(a.progress for a in self.state.agents.values())
+                    count = len(self.state.agents)
                     if count > 0:
                         self.state.progress = min(95, total // count)
                 time.sleep(0.5)
-        
-        progress_thread = threading.Thread(target=update_progress, daemon=True)
+
+        progress_thread = threading.Thread(target=update_progress_demo, daemon=True)
         progress_thread.start()
         
         # Start the scan
@@ -862,16 +1050,57 @@ class SentinelApp:
         else:
             self.run_real_scan()
         
+        # Setup keyboard listener for scrolling
+        import msvcrt
+        import sys
+        
+        def check_key():
+            """Non-blocking key check for Windows."""
+            if msvcrt.kbhit():
+                key = msvcrt.getch()
+                # Handle special keys (arrows, page up/down, home/end)
+                if key == b'\xe0' or key == b'\x00':  # Special key prefix
+                    key2 = msvcrt.getch()
+                    if key2 == b'I':    # Page Up
+                        self.ui.scroll_log_up(10)
+                    elif key2 == b'Q':  # Page Down
+                        self.ui.scroll_log_down(10)
+                    elif key2 == b'H':  # Up arrow
+                        self.ui.scroll_log_up(1)
+                    elif key2 == b'P':  # Down arrow
+                        self.ui.scroll_log_down(1)
+                    elif key2 == b'G':  # Home
+                        self.ui.scroll_to_top()
+                    elif key2 == b'O':  # End
+                        self.ui.scroll_to_bottom()
+                elif key == b'q' or key == b'Q':
+                    return 'quit'
+            return None
+        
         # Run live dashboard - auto exit when scan completes
         with Live(self.ui.render(), console=console, refresh_per_second=4, screen=True) as live:
             try:
                 while True:
+                    # Check for keyboard input
+                    action = check_key()
+                    if action == 'quit':
+                        self.stop_scan()
+                        break
+                    
                     live.update(self.ui.render())
-                    time.sleep(0.25)
+                    time.sleep(0.1)  # Faster refresh for keyboard responsiveness
                     
                     # Auto-exit when scan completes
                     if self.state.status in ("done", "error"):
-                        time.sleep(2)  # Brief pause to show final state
+                        # Wait for user to review, allow scrolling
+                        self.log_manager.log(LogLevel.SYSTEM, "System",
+                            "Scan hoàn tất! Nhấn Q để thoát hoặc PgUp/PgDn để xem log.")
+                        while True:
+                            action = check_key()
+                            if action == 'quit':
+                                break
+                            live.update(self.ui.render())
+                            time.sleep(0.1)
                         break
             except KeyboardInterrupt:
                 self.stop_scan()
@@ -1078,14 +1307,14 @@ class SentinelApp:
     def _show_full_execution_log(self, console: Console):
         """Show full execution log in scrollable format."""
         console.print("\n" + "=" * 70)
-        console.print("[bold bright_blue]📋 FULL EXECUTION LOG[/bold bright_blue]")
-        console.print("[dim]Scroll up/down with your terminal to view all entries[/dim]")
+        console.print("[bold bright_blue]📋 NHẬT KÝ THỰC THI ĐẦY ĐỦ[/bold bright_blue]")
+        console.print("[dim]Cuộn lên/xuống để xem tất cả[/dim]")
         console.print("=" * 70 + "\n")
         
         logs = self.log_manager.get_logs(limit=500)  # Get all logs
         
         if not logs:
-            console.print("[yellow]No logs available.[/yellow]")
+            console.print("[yellow]Chưa có log nào.[/yellow]")
             return
         
         # Color mappings
@@ -1130,27 +1359,27 @@ class SentinelApp:
             console.print(line)
         
         console.print("\n" + "─" * 50)
-        console.print(f"[dim]Total: {len(logs)} log entries[/dim]")
-        console.print("[dim]Tip: Use terminal scroll (Page Up/Down or mouse wheel) to browse[/dim]")
+        console.print(f"[dim]Tổng cộng: {len(logs)} dòng log[/dim]")
+        console.print("[dim]Gợi ý: Dùng chuột/Page Up/Down để cuộn xem toàn bộ[/dim]")
     
     def _interactive_menu(self, console: Console):
         """Show interactive menu after scan."""
         while True:
             console.print("\n" + "─" * 50)
-            console.print("[bold bright_blue]Options:[/bold bright_blue]")
-            console.print("  [cyan]1[/cyan] - Run new scan")
-            console.print("  [cyan]2[/cyan] - View detailed results (JSON)")
-            console.print("  [cyan]3[/cyan] - Export report")
-            console.print("  [cyan]4[/cyan] - View scan history")
-            console.print("  [cyan]5[/cyan] - View full execution log (scrollable)")
-            console.print("  [cyan]q[/cyan] - Quit")
+            console.print("[bold bright_blue]Tùy chọn:[/bold bright_blue]")
+            console.print("  [cyan]1[/cyan] - Quét mục tiêu mới")
+            console.print("  [cyan]2[/cyan] - Xem kết quả chi tiết (JSON)")
+            console.print("  [cyan]3[/cyan] - Xuất báo cáo")
+            console.print("  [cyan]4[/cyan] - Xem lịch sử quét")
+            console.print("  [cyan]5[/cyan] - Xem toàn bộ nhật ký thực thi")
+            console.print("  [cyan]q[/cyan] - Thoát")
             console.print("")
-            
-            choice = console.input("[cyan]Select option:[/cyan] ").strip().lower()
+
+            choice = console.input("[cyan]Chọn:[/cyan] ").strip().lower()
             
             if choice == "1":
                 # Run new scan
-                new_target = console.input("[cyan]Enter target URL (or press Enter for same target):[/cyan] ").strip()
+                new_target = console.input("[cyan]Nhập mục tiêu mới (Enter để giữ nguyên):[/cyan] ").strip()
                 if new_target:
                     self.state.target = new_target
                 
@@ -1204,7 +1433,7 @@ class SentinelApp:
                     syntax = Syntax(json_str, "json", theme="monokai", line_numbers=True)
                     console.print(Panel(syntax, title="phase1_canonical.json", border_style="blue"))
                 else:
-                    console.print("[yellow]No results file found.[/yellow]")
+                    console.print("[yellow]Chưa có file kết quả.[/yellow]")
             
             elif choice == "3":
                 # Export report
@@ -1224,9 +1453,9 @@ class SentinelApp:
                     # Copy file
                     import shutil
                     shutil.copy(canonical_path, export_path)
-                    console.print(f"[green]✓ Report exported to:[/green] [white]{export_path}[/white]")
+                    console.print(f"[green]✓ Đã xuất báo cáo:[/green] [white]{export_path}[/white]")
                 else:
-                    console.print("[yellow]No results to export.[/yellow]")
+                    console.print("[yellow]Chưa có kết quả để xuất.[/yellow]")
             
             elif choice == "4":
                 # View scan history
@@ -1237,35 +1466,35 @@ class SentinelApp:
                     with open(history_path, "r", encoding="utf-8") as f:
                         history = json.load(f)
                     
-                    table = Table(title="Scan History", border_style="blue", box=box.ROUNDED)
+                    table = Table(title="Lịch sử quét", border_style="blue", box=box.ROUNDED)
                     table.add_column("ID", style="cyan")
-                    table.add_column("Target", style="white")
-                    table.add_column("Timestamp", style="dim")
-                    table.add_column("Status", style="green")
+                    table.add_column("Mục tiêu", style="white")
+                    table.add_column("Thời gian", style="dim")
+                    table.add_column("Trạng thái", style="green")
                     
-                    scans = history.get("scans", [])[-10:]  # Last 10 scans
+                    scans = (history if isinstance(history, list) else [])[-10:]
                     for scan in reversed(scans):
                         table.add_row(
-                            scan.get("id", "?")[:8],
-                            scan.get("target", "?")[:40],
-                            scan.get("started_at", "?"),
-                            scan.get("status", "?")
+                            str(scan.get("id", "?"))[:8],
+                            str(scan.get("target", "?"))[:40],
+                            str(scan.get("scan_time") or scan.get("started_at", "?")),
+                            str(scan.get("status", "done"))
                         )
                     
                     console.print(table)
                 else:
-                    console.print("[yellow]No scan history found.[/yellow]")
+                    console.print("[yellow]Chưa có lịch sử quét.[/yellow]")
             
             elif choice == "5":
                 # View full execution log (scrollable in normal console)
                 self._show_full_execution_log(console)
             
             elif choice == "q" or choice == "quit" or choice == "exit":
-                console.print("[cyan]Goodbye! 👋[/cyan]")
+                console.print("[cyan]Tạm biệt![/cyan]")
                 break
             
             else:
-                console.print("[red]Invalid option. Please try again.[/red]")
+                console.print("[red]Lựa chọn không hợp lệ. Vui lòng thử lại.[/red]")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

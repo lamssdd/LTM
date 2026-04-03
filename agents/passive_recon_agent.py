@@ -125,13 +125,11 @@ class PassiveReconAgent(BaseAgent):
                 "whatweb":          [],
             },
             "theharvester": {"emails": [], "hosts": [], "ips": [], "source": ""},
-            "sublist3r":    {"subdomains": [], "source": ""},
             "amass":        {"subdomains": [], "source": ""},
             "subfinder":    {"subdomains": [], "source": ""},
             "crtsh":        {"subdomains": [], "source": ""},
             "wayback":      {"urls": [], "source": ""},
             "shodan":       {"ports": [], "vulns": [], "hostnames": [], "source": ""},
-            "recon_ng":     {"emails": [], "hosts": [], "profiles": [], "credentials": [], "source": ""},
             "google_dorks": {"files": [], "pages": [], "exposed": [], "source": ""},
             # internal meta — used by aggregator for accurate limitation messages
             "_dns_source":      "",
@@ -150,7 +148,7 @@ class PassiveReconAgent(BaseAgent):
         if result["ip_addresses"]:
             self.log(f"IP: {result['ip_addresses']}", "success")
             if tracker: tracker.done("ip_resolve",
-                summary=f"Found {len(result['ip_addresses'])} IP(s): {result['ip_addresses'][0]}",
+                summary=f"Found {len(result['ip_addresses'])} IP(s): {result['ip_addresses'][0] if result['ip_addresses'] else 'N/A'}",
                 result={"ips": result["ip_addresses"]})
         else:
             self.log("IP resolution failed", "warning")
@@ -186,17 +184,13 @@ class PassiveReconAgent(BaseAgent):
         else:
             if tracker: tracker.done("whois", summary="No registrar info", result=result["whois"])
 
-        # 4. Subdomain enumeration (passive, light)
-        if tracker: tracker.start("subdomains")
-        self.log("Subdomain enumeration (passive, light)...")
+        # 4. DNS bruteforce (khong track rieng — ket qua gop vao subdomains chung)
+        self.log("Subdomain enumeration (DNS bruteforce)...")
         result["subdomains"] = self._enumerate_subdomains(hostname, is_local)
         self.log(
-            f"Subdomains found: {len(result['subdomains'])}",
+            f"DNS bruteforce: {len(result['subdomains'])} subdomains found",
             "success" if result["subdomains"] else "info",
         )
-        if tracker: tracker.done("subdomains",
-            summary=f"{len(result['subdomains'])} subdomains found",
-            result={"count": len(result["subdomains"])})
 
         # 5. SSL
         if tracker: tracker.start("ssl")
@@ -214,8 +208,8 @@ class PassiveReconAgent(BaseAgent):
         else:
             if tracker: tracker.done("ssl", summary="No SSL info", result=result["ssl"])
 
-        # 6. Technology fingerprinting (one HTTP GET, read-only)
-        if tracker: tracker.start("tech")
+        # 6. WhatWeb — Technology fingerprinting (HTTP headers + Kali WhatWeb)
+        if tracker: tracker.start("whatweb")
         self.log("Technology fingerprinting from HTTP response...")
         session = make_session(base_url)
         result["technology"] = self._fingerprint_tech(session, base_url)
@@ -225,13 +219,6 @@ class PassiveReconAgent(BaseAgent):
             f"Frameworks: {tech['frameworks']} | CMS: {tech['cms'] or 'none'}",
             "success",
         )
-        if tracker: tracker.done("tech",
-            summary=f"Server: {tech['server'] or '?'} | CMS: {tech['cms'] or 'none'}",
-            result={"server": tech["server"], "cms": tech["cms"],
-                    "frameworks": tech["frameworks"], "libraries": tech["libraries"]})
-
-        # 7. WhatWeb fingerprinting via Kali SSH
-        if tracker: tracker.start("whatweb")
         if not is_local and mode in ("kali_ssh", "auto"):
             self.log("WhatWeb fingerprinting (via Kali SSH)...")
             ww_plugins, ww_source = self._run_whatweb(base_url)
@@ -243,11 +230,12 @@ class PassiveReconAgent(BaseAgent):
                     "success",
                 )
                 if tracker: tracker.done("whatweb",
-                    summary=f"{len(ww_plugins)} plugins via {ww_source}",
-                    result={"plugins": list(ww_plugins.keys()) if isinstance(ww_plugins, dict) else []})
+                    summary=f"Server:{tech['server'] or '?'} | {len(ww_plugins)} plugins via {ww_source}",
+                    result={"server": tech["server"], "plugins": list(ww_plugins.keys()) if isinstance(ww_plugins, dict) else []})
             else:
                 self.log(f"WhatWeb: no results (source={ww_source})", "info")
-                if tracker: tracker.done("whatweb", summary=f"No results ({ww_source})")
+                if tracker: tracker.done("whatweb",
+                    summary=f"Server:{tech['server'] or '?'} | No WhatWeb results ({ww_source})")
         elif is_local:
             result["_whatweb_source"] = "skipped_localhost"
             self.log("WhatWeb skipped — localhost/private IP target", "info")
@@ -255,7 +243,7 @@ class PassiveReconAgent(BaseAgent):
         else:
             result["_whatweb_source"] = "skipped_local_mode"
             self.log("WhatWeb skipped — mode=local (no Kali SSH)", "info")
-            if tracker: tracker.done("whatweb", summary="Skipped — local mode")
+            if tracker: tracker.done("whatweb", summary=f"Server:{tech['server'] or '?'} | WhatWeb skipped (local mode)")
 
         # 8. theHarvester — email & subdomain harvesting via Kali SSH
         if tracker: tracker.start("theharvester")
@@ -285,38 +273,7 @@ class PassiveReconAgent(BaseAgent):
             self.log("theHarvester skipped — mode=local (no Kali SSH)", "info")
             if tracker: tracker.done("theharvester", summary="Skipped — local mode")
 
-        # 9. Sublist3r — subdomain enumeration via search engines (Kali SSH)
-        if tracker: tracker.start("sublist3r")
-        if not is_local and mode in ("kali_ssh", "auto"):
-            self.log("Sublist3r — subdomain enumeration via search engines (Kali SSH)...")
-            sublist3r_result = self._run_sublist3r(hostname)
-            result["sublist3r"] = sublist3r_result
-            if sublist3r_result.get("subdomains"):
-                self.log(
-                    f"Sublist3r: {len(sublist3r_result['subdomains'])} subdomains found",
-                    "success",
-                )
-                existing_subs = {s["subdomain"] for s in result["subdomains"]}
-                for sub in sublist3r_result["subdomains"]:
-                    if sub not in existing_subs:
-                        result["subdomains"].append({"subdomain": sub, "ip": "", "source": "sublist3r"})
-                        existing_subs.add(sub)
-                if tracker: tracker.done("sublist3r",
-                    summary=f"{len(sublist3r_result['subdomains'])} subdomains",
-                    result=sublist3r_result)
-            else:
-                self.log("Sublist3r: no results", "info")
-                if tracker: tracker.done("sublist3r", summary="No results", result=sublist3r_result)
-        elif is_local:
-            result["sublist3r"] = {"subdomains": [], "source": "skipped_localhost"}
-            self.log("Sublist3r skipped — localhost/private IP target", "info")
-            if tracker: tracker.done("sublist3r", summary="Skipped — localhost target")
-        else:
-            result["sublist3r"] = {"subdomains": [], "source": "skipped_local_mode"}
-            self.log("Sublist3r skipped — mode=local (no Kali SSH)", "info")
-            if tracker: tracker.done("sublist3r", summary="Skipped — local mode")
-
-        # 10. Amass — Advanced subdomain enumeration (Kali SSH)
+        # 9. Amass — Advanced subdomain enumeration (Kali SSH)
         if tracker: tracker.start("amass")
         if not is_local and mode in ("kali_ssh", "auto"):
             self.log("Amass — Advanced subdomain enumeration (via Kali SSH)...")
@@ -454,36 +411,7 @@ class PassiveReconAgent(BaseAgent):
             self.log("Shodan skipped — no IP address resolved", "info")
             if tracker: tracker.done("shodan", summary="Skipped — no IP")
 
-        # 13. recon-ng — OSINT Framework (via Kali SSH)
-        if tracker: tracker.start("recon_ng")
-        if not is_local and mode in ("kali_ssh", "auto"):
-            self.log("recon-ng — OSINT reconnaissance framework (via Kali SSH)...")
-            recon_ng_result = self._run_recon_ng(hostname)
-            result["recon_ng"] = recon_ng_result
-            emails = recon_ng_result.get("emails", [])
-            hosts = recon_ng_result.get("hosts", [])
-            profiles = recon_ng_result.get("profiles", [])
-            if emails or hosts or profiles:
-                self.log(
-                    f"recon-ng: {len(emails)} emails, {len(hosts)} hosts, {len(profiles)} profiles",
-                    "success",
-                )
-                if tracker: tracker.done("recon_ng",
-                    summary=f"{len(emails)} emails, {len(hosts)} hosts, {len(profiles)} profiles",
-                    result=recon_ng_result)
-            else:
-                self.log("recon-ng: no results", "info")
-                if tracker: tracker.done("recon_ng", summary="No results", result=recon_ng_result)
-        elif is_local:
-            result["recon_ng"] = {"emails": [], "hosts": [], "profiles": [], "credentials": [], "source": "skipped_localhost"}
-            self.log("recon-ng skipped — localhost/private IP target", "info")
-            if tracker: tracker.done("recon_ng", summary="Skipped — localhost target")
-        else:
-            result["recon_ng"] = {"emails": [], "hosts": [], "profiles": [], "credentials": [], "source": "skipped_local_mode"}
-            self.log("recon-ng skipped — mode=local (no Kali SSH)", "info")
-            if tracker: tracker.done("recon_ng", summary="Skipped — local mode")
-
-        # 14. Google Dorks — Search Engine Dorking (via Python requests)
+        # 13. Google Dorks — Search Engine Dorking (via Python requests)
         if tracker: tracker.start("google_dorks")
         if not is_local:
             self.log("Google Dorks — Search Engine Dorking...")
@@ -680,9 +608,10 @@ class PassiveReconAgent(BaseAgent):
         
         # Method 2: Use openssl command via Kali SSH for detailed cert info
         try:
-            if self.ssh and self.ssh.is_connected():
+            ssh = self._get_ssh()
+            if ssh:
                 cmd = f"echo | timeout 10 openssl s_client -connect {hostname}:443 -servername {hostname} 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null"
-                output = self.ssh.run_command(cmd, timeout=15)
+                output, _, _ = ssh.run(cmd, timeout=15)
                 
                 if output and "subject=" in output.lower():
                     return self._parse_openssl_output(output, hostname)
@@ -1447,7 +1376,7 @@ class PassiveReconAgent(BaseAgent):
         try:
             # Check if recon-ng is installed
             check_cmd = "which recon-ng"
-            exit_code, output, stderr = ssh.exec_command(check_cmd)
+            output, stderr, exit_code = ssh.run(check_cmd)
             if exit_code != 0:
                 self.log("recon-ng not found on Kali", "warning")
                 result["source"] = "not_installed"
@@ -1477,7 +1406,7 @@ exit
 """
             # Execute recon-ng with script via stdin
             cmd = f"echo '{script}' | {recon_ng_bin} --no-version --no-check --no-analytics 2>/dev/null"
-            exit_code, output, stderr = ssh.exec_command(cmd, timeout=120)
+            output, stderr, exit_code = ssh.run(cmd, timeout=120)
 
             if exit_code != 0 and not output:
                 self.log(f"recon-ng execution error: {stderr}", "warning")
