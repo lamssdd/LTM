@@ -934,6 +934,8 @@ class SentinelApp:
                 from agents.passive_recon_agent    import PassiveReconAgent
                 from agents.active_recon_agent     import ActiveReconAgent
                 from agents.recon_aggregator_agent import ReconAggregatorAgent
+                from phase3.analysis_agent import AnalysisAgent
+                from phase3.report_agent import ReportAgent
                 import os as _os
 
                 load_dotenv()
@@ -942,6 +944,9 @@ class SentinelApp:
                 memory      = ScanMemory(self.state.target)
                 tool_config = build_tool_config()
                 tool_config["tool_tracker"] = bridge.make_tool_tracker()
+
+                # ── Phase 1: Reconnaissance ───────────────────────────────────
+                self.log_manager.log(LogLevel.SYSTEM, "System", "Phase 1 started")
 
                 # ── Phase 1a: Passive Recon ───────────────────────────────────
                 self.state.phase = "Phase 1a: Passive Recon  [RUNNING]"
@@ -1003,6 +1008,38 @@ class SentinelApp:
                 bridge.aggregate_done()
                 self.state.agents["Reporter"].status   = "done"
                 self.state.agents["Reporter"].progress = 100
+
+                self.log_manager.log(LogLevel.SUCCESS, "System", "Phase 1 completed")
+
+                # ── Phase 3: Analysis & Report ────────────────────────────────
+                self.log_manager.log(LogLevel.SYSTEM, "System", "Phase 3 started")
+
+                canonical_path = _os.path.join(data_dir, "phase1_canonical.json")
+                if not _os.path.isfile(canonical_path):
+                    raise FileNotFoundError(
+                        f"Phase 1 completed but canonical output not found: {canonical_path}"
+                    )
+
+                self.state.phase = "Phase 3a: Analysis  [RUNNING]"
+                self.state.agents["AnalysisAgent"] = AgentStatus("AnalysisAgent", "running")
+                self.log_manager.log(LogLevel.SYSTEM, "System", "Analysis started")
+
+                analysis_path = AnalysisAgent().run(canonical_path, data_dir)
+
+                self.state.agents["AnalysisAgent"].status = "done"
+                self.state.agents["AnalysisAgent"].progress = 100
+                self.log_manager.log(LogLevel.SUCCESS, "System", "Analysis completed")
+
+                self.state.phase = "Phase 3b: Report  [RUNNING]"
+                self.state.agents["ReportAgent"] = AgentStatus("ReportAgent", "running")
+                self.log_manager.log(LogLevel.SYSTEM, "System", "Report started")
+
+                ReportAgent().run(canonical_path, analysis_path, data_dir)
+
+                self.state.agents["ReportAgent"].status = "done"
+                self.state.agents["ReportAgent"].progress = 100
+                self.log_manager.log(LogLevel.SUCCESS, "System", "Report completed")
+                self.log_manager.log(LogLevel.SUCCESS, "System", "Phase 3 completed")
 
                 # ── Complete — only set here, after ALL phases done ───────────
                 self.state.progress = 100

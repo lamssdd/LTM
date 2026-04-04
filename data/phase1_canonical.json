@@ -1,6 +1,6 @@
 {
   "target": "http://testfire.net/",
-  "timestamp": "2026-04-03T22:06:27",
+  "timestamp": "2026-04-04T07:21:36",
   "passive_recon": {
     "domain": "testfire.net",
     "ip_addresses": [
@@ -26,25 +26,20 @@
       "CNAME": [],
       "MX": [],
       "NS": [
-        "usw2.akam.net.",
         "eur5.akam.net.",
-        "eur2.akam.net.",
-        "usc2.akam.net.",
-        "ns1-206.akam.net.",
-        "asia3.akam.net.",
+        "usw2.akam.net.",
+        "ns1-99.akam.net.",
         "usc3.akam.net.",
-        "ns1-99.akam.net."
+        "eur2.akam.net.",
+        "asia3.akam.net.",
+        "ns1-206.akam.net.",
+        "usc2.akam.net."
       ],
       "TXT": [
         "\"v=spf1 mx/24 -all\""
       ]
     },
     "subdomains": [
-      {
-        "subdomain": "ftp.testfire.net",
-        "ip": "65.61.137.117",
-        "source": "dns_bruteforce"
-      },
       {
         "subdomain": "www.testfire.net",
         "ip": "65.61.137.117",
@@ -61,24 +56,29 @@
         "source": "dns_bruteforce"
       },
       {
-        "subdomain": "altoro.testfire.net",
+        "subdomain": "ftp.testfire.net",
+        "ip": "65.61.137.117",
+        "source": "dns_bruteforce"
+      },
+      {
+        "subdomain": "testfire.net",
         "ip": "",
         "source": "amass"
       },
       {
         "subdomain": "demo2.testfire.net",
         "ip": "",
-        "source": "amass"
+        "source": "subfinder"
       },
       {
         "subdomain": "evil.testfire.net",
         "ip": "",
-        "source": "amass"
+        "source": "subfinder"
       },
       {
-        "subdomain": "testfire.net",
+        "subdomain": "altoro.testfire.net",
         "ip": "",
-        "source": "amass"
+        "source": "subfinder"
       }
     ],
     "ssl": {
@@ -86,7 +86,7 @@
       "issuer": "Sectigo Limited",
       "expiry": "Jun 21 23:59:59 2026 GMT",
       "valid_from": "May 21 00:00:00 2025 GMT",
-      "days_remaining": 79,
+      "days_remaining": 78,
       "protocol": "TLS",
       "san": [
         "demo.testfire.net"
@@ -134,32 +134,28 @@
     },
     "amass": {
       "subdomains": [
-        "ftp.testfire.net",
-        "altoro.testfire.net",
-        "demo2.testfire.net",
-        "demo.testfire.net",
-        "www.testfire.net",
-        "evil.testfire.net",
-        "localhost.testfire.net",
-        "testfire.net"
+        "testfire.net",
+        "www.testfire.net"
       ],
       "source": "kali_amass"
     },
     "subfinder": {
       "subdomains": [
+        "demo2.testfire.net",
+        "evil.testfire.net",
+        "localhost.testfire.net",
+        "www.testfire.net",
         "ftp.testfire.net",
         "altoro.testfire.net",
-        "demo2.testfire.net",
-        "demo.testfire.net",
-        "www.testfire.net",
-        "evil.testfire.net",
-        "localhost.testfire.net"
+        "demo.testfire.net"
       ],
       "source": "kali_subfinder"
     },
     "crtsh": {
-      "subdomains": [],
-      "source": "not_available"
+      "subdomains": [
+        "demo.testfire.net"
+      ],
+      "source": "crtsh"
     },
     "wayback": {
       "urls": [
@@ -440,7 +436,7 @@
           "protocol": "tcp",
           "service": "Apache Tomcat/Coyote JSP engine",
           "version": "1.1",
-          "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=B4993843852626D1872304F5A128A4C4; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nTransfer-Encoding: chunked\r\nDate: Fri"
+          "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=C5956824C6F16607B9E06242842ECE99; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nTransfer-Encoding: chunked\r\nDate: Fri"
         }
       ],
       "vulns": [],
@@ -453,7 +449,7 @@
       "isp": "Rackspace Hosting",
       "country": "United States",
       "city": "Dallas",
-      "last_update": "2026-04-03T04:08:49.423209"
+      "last_update": "2026-04-03T14:21:59.722967"
     },
     "google_dorks": {
       "files": [],
@@ -473,7 +469,7 @@
     "headers": {
       "Server": "Apache-Coyote/1.1",
       "Content-Type": "text/html;charset=ISO-8859-1",
-      "Set-Cookie": "JSESSIONID=5453CCD6313574356F2141EBA89D646E; Path=/; HttpOnly"
+      "Set-Cookie": "JSESSIONID=711E43CA52835EA17E14E18C2ECDAF12; Path=/; HttpOnly"
     },
     "http_methods": [],
     "ports": [
@@ -504,31 +500,48 @@
     },
     "banners": [
       {
-        "port": 80,
-        "service": "http",
-        "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=733A553EE01C62445F688C6B5B004878; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nDate: Fri, 03 Apr 2026 15:06:16 GMT\r\nConnection: close"
-      },
-      {
         "port": 8080,
         "service": "http-proxy",
-        "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=FA74CE9AED4C3DD5A1432367B93BC6DA; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nDate: Fri, 03 Apr 2026 15:06:17 GMT\r\nConnection: close"
+        "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=092712046649BFCCAC3A6D898C59266F; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nDate: Sat, 04 Apr 2026 00:21:28 GMT\r\nConnection: close"
+      },
+      {
+        "port": 80,
+        "service": "http",
+        "banner": "HTTP/1.1 200 OK\r\nServer: Apache-Coyote/1.1\r\nSet-Cookie: JSESSIONID=7524C7DE82FBF1BD1C5CABF614C1BF13; Path=/; HttpOnly\r\nContent-Type: text/html;charset=ISO-8859-1\r\nDate: Sat, 04 Apr 2026 00:21:28 GMT\r\nConnection: close"
       }
     ],
     "syn_scan": {
-      "ports": [],
-      "source": "no_privileges"
+      "ports": [
+        {
+          "port": 80,
+          "state": "open",
+          "service": "http"
+        },
+        {
+          "port": 443,
+          "state": "open",
+          "service": "https"
+        },
+        {
+          "port": 8080,
+          "state": "open",
+          "service": "http-proxy"
+        }
+      ],
+      "source": "kali_nmap_connect",
+      "total_scanned": 49
     },
     "crawl": {
       "urls": [
         "http://testfire.net",
-        "http://testfire.net/subscribe.jsp",
         "http://testfire.net/index.jsp",
+        "http://testfire.net/default.jsp?content=security.htm",
         "http://testfire.net/status_check.jsp",
+        "http://testfire.net/survey_questions.jsp",
+        "http://testfire.net/login.jsp",
+        "http://testfire.net/subscribe.jsp",
         "http://testfire.net/feedback.jsp",
         "http://testfire.net/swagger/index.html",
-        "http://testfire.net/survey_questions.jsp",
-        "http://testfire.net/default.jsp?content=security.htm",
-        "http://testfire.net/login.jsp",
         "http://testfire.net/sendFeedback",
         "http://testfire.net/doSubscribe",
         "http://testfire.net/search.jsp",
@@ -545,19 +558,29 @@
           "hidden_fields": {}
         },
         {
+          "page": "http://testfire.net/status_check.jsp",
+          "action": "javascript:checkSiteStatus('AltoroMutual')",
+          "method": "GET",
+          "inputs": [],
+          "hidden_fields": {}
+        },
+        {
+          "page": "http://testfire.net/login.jsp",
+          "action": "http://testfire.net/doLogin",
+          "method": "POST",
+          "inputs": [
+            "uid",
+            "passw"
+          ],
+          "hidden_fields": {}
+        },
+        {
           "page": "http://testfire.net/subscribe.jsp",
           "action": "http://testfire.net/doSubscribe",
           "method": "POST",
           "inputs": [
             "txtEmail"
           ],
-          "hidden_fields": {}
-        },
-        {
-          "page": "http://testfire.net/status_check.jsp",
-          "action": "javascript:checkSiteStatus('AltoroMutual')",
-          "method": "GET",
-          "inputs": [],
           "hidden_fields": {}
         },
         {
@@ -573,16 +596,6 @@
           "hidden_fields": {
             "cfile": "comments.txt"
           }
-        },
-        {
-          "page": "http://testfire.net/login.jsp",
-          "action": "http://testfire.net/doLogin",
-          "method": "POST",
-          "inputs": [
-            "uid",
-            "passw"
-          ],
-          "hidden_fields": {}
         }
       ],
       "params": [
@@ -591,6 +604,26 @@
           "name": "query",
           "source": "form",
           "method": "GET"
+        },
+        {
+          "page": "http://testfire.net/default.jsp",
+          "name": "content",
+          "source": "url",
+          "examples": [
+            "security.htm"
+          ]
+        },
+        {
+          "page": "http://testfire.net/login.jsp",
+          "name": "uid",
+          "source": "form",
+          "method": "POST"
+        },
+        {
+          "page": "http://testfire.net/login.jsp",
+          "name": "passw",
+          "source": "form",
+          "method": "POST"
         },
         {
           "page": "http://testfire.net/subscribe.jsp",
@@ -619,26 +652,6 @@
         {
           "page": "http://testfire.net/feedback.jsp",
           "name": "comments",
-          "source": "form",
-          "method": "POST"
-        },
-        {
-          "page": "http://testfire.net/default.jsp",
-          "name": "content",
-          "source": "url",
-          "examples": [
-            "security.htm"
-          ]
-        },
-        {
-          "page": "http://testfire.net/login.jsp",
-          "name": "uid",
-          "source": "form",
-          "method": "POST"
-        },
-        {
-          "page": "http://testfire.net/login.jsp",
-          "name": "passw",
           "source": "form",
           "method": "POST"
         }
@@ -690,11 +703,17 @@
         "path": "/admin/",
         "status": 302,
         "source": "kali_ffuf"
+      },
+      {
+        "url": "http://testfire.net/admin",
+        "path": "/admin",
+        "status": 302,
+        "source": "kali_ffuf"
       }
     ],
     "tool_sources": {
       "nmap_tcp": "kali_nmap",
-      "syn_scan": "no_privileges",
+      "syn_scan": "kali_nmap_connect",
       "ffuf": "kali_ffuf",
       "wafw00f": "kali_wafw00f",
       "banner": "socket"
@@ -705,7 +724,7 @@
     "total_forms": 5,
     "total_params": 9,
     "total_notable_endpoints": 2,
-    "total_hidden_endpoints": 1,
+    "total_hidden_endpoints": 2,
     "total_js_endpoints": 0,
     "total_hidden_fields": 1,
     "total_discovered_from_robots": 0,
@@ -713,7 +732,7 @@
     "total_subdomains": 8,
     "total_emails": 0,
     "total_wayback_urls": 253,
-    "total_crtsh_subdomains": 0,
+    "total_crtsh_subdomains": 1,
     "ssl_valid": true,
     "nmap_used": true,
     "nmap_source": "kali_nmap",

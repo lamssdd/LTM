@@ -1263,9 +1263,10 @@ class ActiveReconAgent(BaseAgent):
         """TCP SYN scan using Scapy for stealth port scanning.
         
         Priority: 
-        1. Kali SSH with sudo (most reliable)
-        2. Local Scapy with root/admin
-        3. Fallback to nmap SYN scan via Kali
+        1. Kali SSH with sudo nmap SYN scan (most reliable)
+        2. Kali SSH with hping3 (alternative if nmap fails)
+        3. Local Scapy with root/admin
+        4. Fallback message
 
         Returns: (syn_result_dict, source_string)
         syn_result_dict: {"ports": [...], "source": "scapy"|"not_available"}
@@ -1287,12 +1288,94 @@ class ActiveReconAgent(BaseAgent):
         # ═══════════════════════════════════════════════════════════════════════
         ssh = self._get_ssh()
         if ssh:
+            # Check if we can run sudo without password prompt
             try:
-                # Use nmap with sudo for SYN scan (-sS requires root)
-                # -Pn: skip host discovery, -n: no DNS resolution
-                cmd = f"sudo nmap -sS -Pn -n -T4 --open -p {ports_str} {hostname} 2>/dev/null | grep -E '^[0-9]+/tcp'"
-                self.log(f"SYN scan via Kali SSH: {hostname}", "info")
+                # First test if sudo works
+                sudo_test, _, rc = ssh.run("sudo -n true 2>/dev/null && echo 'SUDO_OK'", timeout=10)
+                can_sudo = "SUDO_OK" in sudo_test
+                
+                if can_sudo:
+                    # Use nmap with sudo for SYN scan (-sS requires root)
+                    cmd = f"sudo nmap -sS -Pn -n -T4 --open -p {ports_str} {hostname} 2>/dev/null | grep -E '^[0-9]+/tcp'"
+                    self.log(f"SYN scan via Kali SSH (sudo nmap): {hostname}", "info")
 
+                    output, _, _ = ssh.run(cmd, timeout=120)
+                    
+                    if output:
+                        open_ports = []
+                        for line in output.strip().split('\n'):
+                            if '/tcp' in line and 'open' in line:
+                                parts = line.split()
+                                if parts:
+                                    port_part = parts[0].split('/')[0]
+                                    try:
+                                        port = int(port_part)
+                                        service = parts[2] if len(parts) > 2 else self._guess_service(port)
+                                        open_ports.append({
+                                            "port": port,
+                                            "state": "open",
+                                            "service": service,
+                                        })
+                                    except ValueError:
+                                        pass
+                        
+                        if open_ports:
+                            result["ports"] = open_ports
+                            result["total_scanned"] = len(common_ports)
+                            result["source"] = "kali_nmap_syn"
+                            self.log(f"SYN scan found {len(open_ports)} open ports", "success")
+                            return result, "kali_nmap_syn"
+                        else:
+                            result["total_scanned"] = len(common_ports)
+                            result["source"] = "kali_nmap_syn"
+                            self.log("SYN scan: no open ports found in top 50", "info")
+                            return result, "kali_nmap_syn"
+                else:
+                    self.log("Kali sudo requires password - trying hping3 (no root needed for some tests)", "info")
+                    
+            except Exception as e:
+                self.log(f"Kali sudo nmap failed: {e}", "warning")
+
+            # ═══════════════════════════════════════════════════════════════════
+            # Method 1b: Kali SSH with masscan (very fast, requires sudo)
+            # ═══════════════════════════════════════════════════════════════════
+            try:
+                sudo_test, _, _ = ssh.run("sudo -n which masscan 2>/dev/null", timeout=5)
+                if sudo_test and 'masscan' in sudo_test:
+                    self.log(f"Trying masscan SYN scan via Kali: {hostname}", "info")
+                    cmd = f"sudo masscan -p {ports_str} {hostname} --rate=500 2>/dev/null | grep 'open'"
+                    output, _, _ = ssh.run(cmd, timeout=60)
+                    
+                    if output:
+                        open_ports = []
+                        for line in output.strip().split('\n'):
+                            if 'open' in line:
+                                # masscan format: "Discovered open port 80/tcp on 1.2.3.4"
+                                import re
+                                match = re.search(r'port (\d+)/tcp', line)
+                                if match:
+                                    port = int(match.group(1))
+                                    open_ports.append({
+                                        "port": port,
+                                        "state": "open",
+                                        "service": self._guess_service(port),
+                                    })
+                        
+                        if open_ports:
+                            result["ports"] = open_ports
+                            result["total_scanned"] = len(common_ports)
+                            result["source"] = "kali_masscan"
+                            self.log(f"masscan found {len(open_ports)} open ports", "success")
+                            return result, "kali_masscan"
+            except Exception as e:
+                self.log(f"Kali masscan failed: {e}", "warning")
+
+            # ═══════════════════════════════════════════════════════════════════
+            # Method 1c: Non-root nmap connect scan (slower but no sudo needed)
+            # ═══════════════════════════════════════════════════════════════════
+            try:
+                self.log(f"Falling back to TCP connect scan (no root): {hostname}", "info")
+                cmd = f"nmap -sT -Pn -n -T4 --open -p {ports_str} {hostname} 2>/dev/null | grep -E '^[0-9]+/tcp'"
                 output, _, _ = ssh.run(cmd, timeout=120)
                 
                 if output:
@@ -1316,18 +1399,17 @@ class ActiveReconAgent(BaseAgent):
                     if open_ports:
                         result["ports"] = open_ports
                         result["total_scanned"] = len(common_ports)
-                        result["source"] = "kali_nmap_syn"
-                        self.log(f"SYN scan found {len(open_ports)} open ports", "success")
-                        return result, "kali_nmap_syn"
+                        result["source"] = "kali_nmap_connect"
+                        self.log(f"TCP connect scan found {len(open_ports)} open ports", "success")
+                        return result, "kali_nmap_connect"
                     else:
-                        # Scan completed but no open ports found
                         result["total_scanned"] = len(common_ports)
-                        result["source"] = "kali_nmap_syn"
-                        self.log("SYN scan: no open ports found in top 50", "info")
-                        return result, "kali_nmap_syn"
+                        result["source"] = "kali_nmap_connect"
+                        self.log("TCP connect scan: no open ports in top 50", "info")
+                        return result, "kali_nmap_connect"
                         
             except Exception as e:
-                self.log(f"Kali SYN scan failed: {e}, trying local Scapy", "warning")
+                self.log(f"Kali nmap connect scan failed: {e}", "warning")
 
         # ═══════════════════════════════════════════════════════════════════════
         # Method 2: Local Scapy (requires admin/root)

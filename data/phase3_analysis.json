@@ -1,0 +1,276 @@
+{
+  "meta": {
+    "target": "http://testfire.net/",
+    "timestamp_phase1": "2026-04-04T07:21:36",
+    "timestamp_analysis": "2026-04-04T00:21:36Z",
+    "analyzer_version": "1.0",
+    "input_file": "phase1_canonical.json"
+  },
+  "attack_surface_summary": {
+    "total_open_ports": 3,
+    "total_open_ports_note": "Nmap: 3, Shodan: 3, deduplicated: 3",
+    "total_subdomains": 8,
+    "total_crawled_urls": 13,
+    "total_forms": 5,
+    "total_params": 9,
+    "total_notable_endpoints": 2,
+    "total_hidden_endpoints": 2,
+    "total_wayback_urls": 253,
+    "total_js_endpoints": 0,
+    "total_emails_found": 0,
+    "security_headers_missing": [
+      "Strict-Transport-Security",
+      "Content-Security-Policy",
+      "X-Frame-Options",
+      "X-Content-Type-Options",
+      "Referrer-Policy",
+      "Permissions-Policy",
+      "X-XSS-Protection"
+    ],
+    "waf_detected": false,
+    "ssl_valid": true,
+    "ssl_days_remaining": 78
+  },
+  "findings": [
+    {
+      "id": "F001",
+      "category": "ssl_tls",
+      "observation": "SSL/TLS certificate observed with 78 day(s) remaining until expiry (issuer: Sectigo Limited). Below recommended threshold of 90 days.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Plan certificate renewal to ensure continuous availability."
+    },
+    {
+      "id": "F002",
+      "category": "ssl_tls",
+      "observation": "Observed SSL/TLS configuration: protocol=TLS, SAN=demo.testfire.net.",
+      "risk_indicator": "informational",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Validate SAN entries and TLS protocol version support."
+    },
+    {
+      "id": "F003",
+      "category": "security_headers",
+      "observation": "The following security headers were not observed in HTTP response (source: active_recon.headers / passive_recon.technology.security_headers): Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-XSS-Protection.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Configure missing security headers at the web server or application layer."
+    },
+    {
+      "id": "F004",
+      "category": "banner_disclosure",
+      "observation": "Server header observed in HTTP response (source: active_recon.headers.Server): 'Apache-Coyote/1.1'.",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Determine whether server version string should be suppressed in production configuration."
+    },
+    {
+      "id": "F005",
+      "category": "banner_disclosure",
+      "observation": "Service banner containing server identity observed on port 8080 (http-proxy) (source: active_recon.banners).",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Review and consider suppressing banner content on port 8080."
+    },
+    {
+      "id": "F006",
+      "category": "banner_disclosure",
+      "observation": "Service banner containing server identity observed on port 80 (http) (source: active_recon.banners).",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Review and consider suppressing banner content on port 80."
+    },
+    {
+      "id": "F007",
+      "category": "cookie_security",
+      "observation": "Cookie 'JSESSIONID' (source: active_recon.cookies_analysis) observed with potential configuration concerns: Secure flag not observed (cookie may transmit over plaintext HTTP); SameSite attribute not observed (cross-site request concern — requires validation).",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Validate cookie 'JSESSIONID' attributes during authenticated session testing. Confirm cookie role before drawing conclusions."
+    },
+    {
+      "id": "F008",
+      "category": "port_exposure",
+      "observation": "3 open port(s) observed (sources: Nmap + Shodan, deduplicated): [80, 443, 8080]. Services: 80/http, 443/https, 8080/http-proxy.",
+      "risk_indicator": "informational",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Verify service versions and whether all open ports are intentionally exposed."
+    },
+    {
+      "id": "F009",
+      "category": "port_exposure",
+      "observation": "Non-standard HTTP port 8080 (http-proxy) observed as open (source: kali_nmap, shodan). May indicate an additional web interface or management service.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Determine whether port 8080 exposes an alternate entry point or admin interface."
+    },
+    {
+      "id": "F010",
+      "category": "waf_detection",
+      "observation": "No Web Application Firewall (WAF) detected during Phase 1 reconnaissance (source: kali_wafw00f). This is an observed indicator only — requires further validation.",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Confirm WAF configuration using additional reconnaissance techniques."
+    },
+    {
+      "id": "F011",
+      "category": "http_methods",
+      "observation": "HTTP methods data not available in Phase 1 data (active_recon.http_methods is empty).",
+      "risk_indicator": "informational",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Verify allowed HTTP methods through direct testing."
+    },
+    {
+      "id": "F012",
+      "category": "sensitive_endpoints",
+      "observation": "Endpoint category 'administrative' observed (1 URL(s), sources: hidden_endpoints): 'http://testfire.net/admin/'.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Verify authentication and access control requirements for 'administrative' endpoints."
+    },
+    {
+      "id": "F013",
+      "category": "sensitive_endpoints",
+      "observation": "Endpoint category 'api_docs' observed (1 URL(s), sources: crawl): 'http://testfire.net/swagger/index.html'.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Verify authentication and access control requirements for 'api_docs' endpoints."
+    },
+    {
+      "id": "F014",
+      "category": "sensitive_endpoints",
+      "observation": "Endpoint category 'authentication' observed (2 URL(s), sources: crawl, notable_endpoints): 'http://testfire.net/doLogin', 'http://testfire.net/login.jsp'.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Verify authentication and access control requirements for 'authentication' endpoints."
+    },
+    {
+      "id": "F015",
+      "category": "sensitive_endpoints",
+      "observation": "Endpoint category 'feedback' observed (1 URL(s), sources: crawl): 'http://testfire.net/feedback.jsp'.",
+      "risk_indicator": "low",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Verify authentication and access control requirements for 'feedback' endpoints."
+    },
+    {
+      "id": "F016",
+      "category": "sensitive_endpoints",
+      "observation": "Endpoint category 'search' observed (1 URL(s), sources: crawl, notable_endpoints): 'http://testfire.net/search.jsp'.",
+      "risk_indicator": "low",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Verify authentication and access control requirements for 'search' endpoints."
+    },
+    {
+      "id": "F017",
+      "category": "wayback_disclosure",
+      "observation": "24 URL(s) with potentially sensitive file extensions observed in Wayback Machine historical data (source: passive_recon.wayback.urls). Sample: http://testfire.net/admin/clients.xls, http://testfire.net:80/bank/account.aspx.cs, http://testfire.net:80/bank/apply.aspx.cs, http://testfire.net:80/bank/bank.master.cs, http://testfire.net:80/bank/customize.aspx.cs.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Check current accessibility of historical URLs with sensitive extensions."
+    },
+    {
+      "id": "F018",
+      "category": "hidden_endpoints",
+      "observation": "Path 'http://testfire.net/admin/' responded with HTTP 302 during directory fuzzing (source: kali_ffuf -> active_recon.hidden_endpoints).",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Verify authentication and access control for 'http://testfire.net/admin/'."
+    },
+    {
+      "id": "F019",
+      "category": "hidden_endpoints",
+      "observation": "Path 'http://testfire.net/admin' responded with HTTP 302 during directory fuzzing (source: kali_ffuf -> active_recon.hidden_endpoints).",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Verify authentication and access control for 'http://testfire.net/admin'."
+    },
+    {
+      "id": "F020",
+      "category": "form_analysis",
+      "observation": "Hidden field 'cfile' (value: 'comments.txt') observed in form 'http://testfire.net/sendFeedback' (source: active_recon.crawl.hidden_fields).",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Inspect hidden field 'cfile' for business logic implications during authorized testing."
+    },
+    {
+      "id": "F021",
+      "category": "form_analysis",
+      "observation": "Authentication form observed (action: 'http://testfire.net/doLogin', method: POST, inputs: ['uid', 'passw']). No CSRF token observed -- requires further validation.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Verify authentication security: session handling, HTTPS, and CSRF protection."
+    },
+    {
+      "id": "F022",
+      "category": "form_analysis",
+      "observation": "4 standard HTML forms observed (actions: http://testfire.net/search.jsp, javascript:checkSiteStatus('AltoroMutual'), http://testfire.net/doSubscribe, http://testfire.net/sendFeedback). None appear to be authentication or file upload forms.",
+      "risk_indicator": "informational",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Inspect form inputs for potential injection points during authorized testing."
+    },
+    {
+      "id": "F023",
+      "category": "subdomain_exposure",
+      "observation": "8 subdomain(s) observed (source: passive_recon.subdomains): www.testfire.net, demo.testfire.net, localhost.testfire.net, ftp.testfire.net, testfire.net, demo2.testfire.net, evil.testfire.net, altoro.testfire.net.",
+      "risk_indicator": "informational",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Verify active status and service configuration of each subdomain."
+    },
+    {
+      "id": "F024",
+      "category": "subdomain_exposure",
+      "observation": "Subdomains with notable naming patterns observed: localhost.testfire.net, ftp.testfire.net, evil.testfire.net. May indicate development, administrative, FTP, or legacy services.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Review access controls and service exposure for flagged subdomains."
+    },
+    {
+      "id": "F025",
+      "category": "robots_sitemap",
+      "observation": "robots.txt returned HTTP 404 (source: active_recon.discovery.robots.status).",
+      "risk_indicator": "informational",
+      "follow_up_priority": "none",
+      "recommended_next_check": "Confirm robots.txt is intentionally absent or verify URL path."
+    },
+    {
+      "id": "F026",
+      "category": "robots_sitemap",
+      "observation": "No sitemap data observed (source: active_recon.discovery.sitemap_urls and robots.sitemaps are empty).",
+      "risk_indicator": "informational",
+      "follow_up_priority": "none",
+      "recommended_next_check": "Check for sitemap.xml at common paths."
+    },
+    {
+      "id": "F027",
+      "category": "url_parameters",
+      "observation": "9 URL/form parameter(s) observed (source: active_recon.crawl.params): query, content, uid, passw, txtEmail, name, email_addr, subject, comments.",
+      "risk_indicator": "informational",
+      "follow_up_priority": "medium",
+      "recommended_next_check": "Validate parameters for injection susceptibility during authorized testing."
+    },
+    {
+      "id": "F028",
+      "category": "url_parameters",
+      "observation": "Parameter(s) with naming patterns associated with path/URL manipulation observed: content. This is a potential risk indicator requiring further validation.",
+      "risk_indicator": "medium",
+      "follow_up_priority": "high",
+      "recommended_next_check": "Investigate parameter behavior and validate input handling."
+    },
+    {
+      "id": "F029",
+      "category": "technology_fingerprint",
+      "observation": "Technology stack identified from reconnaissance (source: passive_recon.technology): Server: Apache-Coyote/1.1; Frameworks: Apache, Java.",
+      "risk_indicator": "low",
+      "follow_up_priority": "low",
+      "recommended_next_check": "Cross-reference identified components against known vulnerability databases."
+    },
+    {
+      "id": "F030",
+      "category": "dns_email",
+      "observation": "SPF TXT record observed (source: passive_recon.dns_records.TXT): \"v=spf1 mx/24 -all\".",
+      "risk_indicator": "informational",
+      "follow_up_priority": "none",
+      "recommended_next_check": "Validate SPF policy strictness. Also check DMARC and DKIM records."
+    }
+  ]
+}

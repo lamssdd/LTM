@@ -1186,45 +1186,97 @@ class PassiveReconAgent(BaseAgent):
         """Query crt.sh Certificate Transparency logs for subdomain discovery.
 
         Returns: {"subdomains": [...], "source": "crtsh"|"not_available"}
+        
+        Improvements:
+        - Retry mechanism with exponential backoff (crt.sh often rate-limits)
+        - Longer timeout (crt.sh can be slow)
+        - Fallback to alternative CT log APIs
         """
         result = {"subdomains": [], "source": "not_available"}
 
-        try:
-            # crt.sh API endpoint
-            url = f"https://crt.sh/?q=%.{domain}&output=json"
-            self.log(f"crt.sh query: {domain}", "info")
+        # ═══════════════════════════════════════════════════════════════════════
+        # Method 1: crt.sh API with retry + longer timeout
+        # ═══════════════════════════════════════════════════════════════════════
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                url = f"https://crt.sh/?q=%.{domain}&output=json"
+                self.log(f"crt.sh query (attempt {attempt + 1}/{max_retries}): {domain}", "info")
 
-            session = make_session(url)
-            resp = session.get(url, timeout=30)
+                session = make_session(url)
+                # Longer timeout: crt.sh can be very slow
+                resp = session.get(url, timeout=(10, 60))
 
-            if resp.status_code == 200 and resp.text.strip():
-                import json
-                try:
+                if resp.status_code == 200 and resp.text.strip():
+                    import json
+                    try:
+                        data = json.loads(resp.text)
+                        subdomains = set()
+
+                        for entry in data:
+                            name_value = entry.get("name_value", "")
+                            for name in name_value.split("\n"):
+                                name = name.strip().lower()
+                                if name.startswith("*."):
+                                    name = name[2:]
+                                if name.endswith(domain) and name != domain:
+                                    subdomains.add(name)
+
+                        result["subdomains"] = list(subdomains)[:200]
+                        result["source"] = "crtsh"
+                        return result  # Success, return early
+
+                    except json.JSONDecodeError as e:
+                        self.log(f"crt.sh JSON parse error: {e}", "warning")
+                        
+                elif resp.status_code == 503:
+                    # Service unavailable - retry with backoff
+                    wait_time = 2 ** attempt
+                    self.log(f"crt.sh 503, retrying in {wait_time}s...", "info")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    self.log(f"crt.sh returned status {resp.status_code}", "info")
+
+            except requests.exceptions.Timeout:
+                self.log(f"crt.sh timeout (attempt {attempt + 1})", "warning")
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            except Exception as e:
+                self.log(f"crt.sh error: {e}", "warning")
+                break
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # Method 2: Fallback to certspotter.com API (alternative CT log)
+        # ═══════════════════════════════════════════════════════════════════════
+        if not result["subdomains"]:
+            try:
+                self.log(f"Trying certspotter.com fallback for {domain}", "info")
+                url = f"https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
+                session = make_session(url)
+                resp = session.get(url, timeout=30)
+                
+                if resp.status_code == 200:
+                    import json
                     data = json.loads(resp.text)
                     subdomains = set()
-
+                    
                     for entry in data:
-                        name_value = entry.get("name_value", "")
-                        # name_value can contain multiple domains separated by newlines
-                        for name in name_value.split("\n"):
-                            name = name.strip().lower()
-                            # Remove wildcard prefix
+                        for dns_name in entry.get("dns_names", []):
+                            name = dns_name.strip().lower()
                             if name.startswith("*."):
                                 name = name[2:]
-                            # Only include subdomains of target domain
                             if name.endswith(domain) and name != domain:
                                 subdomains.add(name)
-
-                    result["subdomains"] = list(subdomains)[:200]
-                    result["source"] = "crtsh"
-
-                except json.JSONDecodeError as e:
-                    self.log(f"crt.sh JSON parse error: {e}", "warning")
-            else:
-                self.log(f"crt.sh returned status {resp.status_code}", "info")
-
-        except Exception as e:
-            self.log(f"crt.sh error: {e}", "warning")
+                    
+                    if subdomains:
+                        result["subdomains"] = list(subdomains)[:200]
+                        result["source"] = "certspotter"
+                        self.log(f"certspotter.com: {len(result['subdomains'])} subdomains", "success")
+                        return result
+                        
+            except Exception as e:
+                self.log(f"certspotter.com error: {e}", "warning")
 
         return result
 
@@ -1476,8 +1528,10 @@ exit
     def _run_google_dorks(self, domain: str) -> dict:
         """Run Google Dorks queries to find exposed files and sensitive pages.
 
-        Uses multiple search engines (DuckDuckGo, Bing) as fallback since
-        Google has rate limiting and captcha protection.
+        Uses multiple search engines with fallback chain:
+        1. Bing (primary)
+        2. DuckDuckGo (fallback)
+        3. Kali googler tool (via SSH, if available)
 
         Returns: {"files": [...], "pages": [...], "exposed": [...], "source": "..."}
         """
@@ -1518,27 +1572,91 @@ exit
             ],
         }
 
-        session = make_session("https://www.bing.com")
-
-        # We'll use Bing since it has less aggressive rate limiting than Google
-        # and DuckDuckGo's HTML results are harder to parse
         found_results = {"files": set(), "pages": set(), "exposed": set()}
+        sources_used = []
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # Method 1: Bing Search (primary)
+        # ═══════════════════════════════════════════════════════════════════════
+        session = make_session("https://www.bing.com")
+        bing_worked = False
 
         for category, queries in dorks.items():
             for query in queries:
                 try:
-                    # Use Bing Search
                     bing_results = self._search_bing(session, query)
                     for url in bing_results:
                         if domain in url:
                             found_results[category].add(url)
-
-                    # Small delay to avoid rate limiting
-                    time.sleep(0.5)
-
+                            bing_worked = True
+                    time.sleep(0.8)  # Slightly longer delay
                 except Exception as e:
-                    self.log(f"Dork query error ({query[:30]}...): {e}", "warning")
+                    self.log(f"Bing dork error ({query[:25]}...): {e}", "warning")
                     continue
+
+        if bing_worked:
+            sources_used.append("bing")
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # Method 2: DuckDuckGo fallback if Bing returned nothing
+        # ═══════════════════════════════════════════════════════════════════════
+        total_bing = sum(len(found_results[k]) for k in found_results)
+        if total_bing == 0:
+            self.log("Bing returned no results, trying DuckDuckGo...", "info")
+            ddg_session = make_session("https://html.duckduckgo.com")
+
+            for category, queries in dorks.items():
+                for query in queries:
+                    try:
+                        ddg_results = self._search_duckduckgo(ddg_session, query)
+                        for url in ddg_results:
+                            if domain in url:
+                                found_results[category].add(url)
+                        time.sleep(1.0)
+                    except Exception as e:
+                        continue
+
+            if sum(len(found_results[k]) for k in found_results) > 0:
+                sources_used.append("duckduckgo")
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # Method 3: Kali googler tool (via SSH) - best for bypassing rate limits
+        # ═══════════════════════════════════════════════════════════════════════
+        total_so_far = sum(len(found_results[k]) for k in found_results)
+        if total_so_far == 0:
+            ssh = self._get_ssh()
+            if ssh:
+                googler_bin = ssh.which("googler")
+                if googler_bin:
+                    self.log("Trying Kali googler for dorking...", "info")
+                    try:
+                        # Use a subset of dorks (most important ones)
+                        priority_dorks = [
+                            (f"site:{domain} inurl:admin", "pages"),
+                            (f"site:{domain} inurl:login", "pages"),
+                            (f"site:{domain} filetype:pdf", "files"),
+                            (f"site:{domain} filetype:sql", "files"),
+                            (f"site:{domain} \"mysql error\"", "exposed"),
+                            (f"site:{domain} inurl:.git", "exposed"),
+                        ]
+                        
+                        for query, category in priority_dorks:
+                            import shlex
+                            cmd = f"{googler_bin} -n 10 --np -C {shlex.quote(query)} 2>/dev/null | grep -E '^https?://'"
+                            output, _, _ = ssh.run(cmd, timeout=20)
+                            
+                            if output:
+                                for line in output.strip().split('\n'):
+                                    url = line.strip()
+                                    if url.startswith('http') and domain in url:
+                                        found_results[category].add(url)
+                            time.sleep(2)  # Longer delay for Google
+                        
+                        if sum(len(found_results[k]) for k in found_results) > 0:
+                            sources_used.append("kali_googler")
+                            
+                    except Exception as e:
+                        self.log(f"Kali googler error: {e}", "warning")
 
         # Convert sets to lists
         result["files"] = list(found_results["files"])[:50]
@@ -1548,11 +1666,10 @@ exit
         # Determine source
         total = len(result["files"]) + len(result["pages"]) + len(result["exposed"])
         if total > 0:
-            result["source"] = "bing_dorks"
+            result["source"] = "+".join(sources_used) if sources_used else "mixed_dorks"
         else:
             result["source"] = "no_results"
 
-        # Add dork queries used for reference
         result["queries_used"] = sum(len(v) for v in dorks.values())
 
         return result
